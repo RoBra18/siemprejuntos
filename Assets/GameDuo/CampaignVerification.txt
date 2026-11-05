@@ -1,0 +1,312 @@
+Campaign Play Mode verification: 0 failures / 2026-10-18T20:08:31
+PASS Build opens the main menu
+PASS Menu music plays and loops
+PASS Menu has exactly one active audio listener
+PASS Controls opens the real tutorial pages
+PASS Menu music fades out before the intro
+PASS Nine imported movie references included in Resources
+PASS Movie prepares behind opaque black: 1
+PASS Movie decodes real frames: 1
+PASS Movie produces non-silent audio samples: 1
+PASS Movie audio track routed at full volume: 1
+PASS Exactly one active audio listener during movie: 1
+PASS New scene activates behind opaque black: 01_Tutorial_Chicle
+PASS Intro movie finishes and releases overlay
+PASS Both-player tutorial confirmations finish
+PASS Hero 0 moves with real keyboard input
+PASS Hero 0 jumps with real keyboard input
+PASS Hero 1 moves with real keyboard input
+PASS Hero 1 jumps with real keyboard input
+PASS Two playable heroes in combat chapter 1
+PASS Both-player tutorial confirmations finish
+PASS Chapter 1 enemy 0 has visible replacement art
+PASS No duplicate enemy control 0/0
+PASS Chapter 1 enemy 1 has visible replacement art
+PASS No duplicate enemy control 0/1
+PASS Chapter 1 enemy 2 has visible replacement art
+PASS No duplicate enemy control 0/2
+PASS Chapter 1 enemy 3 has visible replacement art
+PASS No duplicate enemy control 0/3
+PASS Chapter 1 enemy 4 has visible replacement art
+PASS No duplicate enemy control 0/4
+PASS Chapter 1 enemy 5 has visible replacement art
+PASS No duplicate enemy control 0/5
+PASS Chapter 1 enemy 6 has visible replacement art
+PASS No duplicate enemy control 0/6
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Jumper
+PASS Real beam collision damages chapter 1 enemy Jumper
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Jumper
+PASS Real beam collision damages chapter 1 enemy Jumper
+PASS Live wave enemy visible: chapter 1 kind Jumper
+PASS Real beam collision damages chapter 1 enemy Jumper
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Jumper
+PASS Real beam collision damages chapter 1 enemy Jumper
+PASS Live wave enemy visible: chapter 1 kind Jumper
+PASS Real beam collision damages chapter 1 enemy Jumper
+PASS Live wave enemy visible: chapter 1 kind Walker
+PASS Real beam collision damages chapter 1 enemy Walker
+PASS Live wave enemy visible: chapter 1 kind Chaser
+PASS Real beam collision damages chapter 1 enemy Chaser
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS Live wave enemy visible: chapter 1 kind Flyer
+PASS Real beam collision damages chapter 1 enemy Flyer
+PASS All three combat waves finish in chapter 1
+PASS Movie prepares behind opaque black: 2
+PASS Movie decodes real frames: 2
+PASS Movie produces non-silent audio samples: 2
+PASS Movie audio track routed at full volume: 2
+PASS Exactly one active audio listener during movie: 2
+PASS Movie prepares behind opaque black: 3
+PASS Movie decodes real frames: 3
+PASS Movie produces non-silent audio samples: 3
+PASS Movie audio track routed at full volume: 3
+PASS Exactly one active audio listener during movie: 3
+PASS New scene activates behind opaque black: 02_ReinoNeon
+PASS Tutorial -> movies 2,3 -> Neon
+PASS Vertical portal installed
+PASS Reciprocal neon control 0
+PASS Reciprocal neon control 1
+PASS Reciprocal neon control 2
+PASS Reciprocal neon control 3
+PASS Reciprocal neon control 4
+PASS Reciprocal neon control 5
+PASS Battery A enables Pipro routing
+PASS Battery B releases relay
+PASS Mimo starts core
+PASS Pipro reverses core
+PASS Mimo confirms core
+PASS Both plates restore reactor
+PASS Both heroes collect heart fragment
+PASS Portal rejects one player alone
+PASS Both heroes enter portal
+PASS Movie prepares behind opaque black: 4
+PASS Movie decodes real frames: 4
+PASS Movie produces non-silent audio samples: 4
+PASS Movie audio track routed at full volume: 4
+PASS Exactly one active audio listener during movie: 4
+PASS New scene activates behind opaque black: 03_ReyHielo
+PASS Portal -> movie 4 -> Ice King
+PASS Two playable heroes in combat chapter 3
+PASS Both-player tutorial confirmations finish
+PASS Chapter 3 enemy 0 has visible replacement art
+PASS No duplicate enemy control 2/0
+PASS Ice enemy stays visible across pose changes 0
+PASS Chapter 3 enemy 1 has visible replacement art
+PASS No duplicate enemy control 2/1
+PASS Ice enemy stays visible across pose changes 1
+PASS Chapter 3 enemy 2 has visible replacement art
+PASS No duplicate enemy control 2/2
+PASS Ice enemy stays visible across pose changes 2
+PASS Chapter 3 enemy 3 has visible replacement art
+PASS No duplicate enemy control 2/3
+PASS Ice enemy stays visible across pose changes 3
+PASS Chapter 3 enemy 4 has visible replacement art
+PASS No duplicate enemy control 2/4
+PASS Ice enemy stays visible across pose changes 4
+PASS Chapter 3 enemy 5 has visible replacement art
+PASS No duplicate enemy control 2/5
+PASS Ice enemy stays visible across pose changes 5
+PASS Chapter 3 enemy 6 has visible replacement art
+PASS No duplicate enemy control 2/6
+PASS Ice enemy stays visible across pose changes 6
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS Live wave enemy visible: chapter 3 kind Jumper
+PASS Real beam collision damages chapter 3 enemy Jumper
+PASS Live wave enemy visible: chapter 3 kind Armored
+PASS Real beam collision damages chapter 3 enemy Armored
+PASS Live wave enemy visible: chapter 3 kind Flyer
+PASS Real beam collision damages chapter 3 enemy Flyer
+PASS Live wave enemy visible: chapter 3 kind Cannon
+PASS Real beam collision damages chapter 3 enemy Cannon
+PASS Closed ice core rejects damage
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS Live wave enemy visible: chapter 3 kind Cannon
+PASS Real beam collision damages chapter 3 enemy Cannon
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS Live wave enemy visible: chapter 3 kind Flyer
+PASS Real beam collision damages chapter 3 enemy Flyer
+PASS Live wave enemy visible: chapter 3 kind Jumper
+PASS Real beam collision damages chapter 3 enemy Jumper
+PASS Live wave enemy visible: chapter 3 kind Armored
+PASS Real beam collision damages chapter 3 enemy Armored
+PASS Live wave enemy visible: chapter 3 kind Walker
+PASS Real beam collision damages chapter 3 enemy Walker
+PASS All three combat waves finish in chapter 3
+PASS Ice King executes four patterns and three phases
+PASS Ice boss defeat cleans hazards
+PASS Movie prepares behind opaque black: 5
+PASS Movie decodes real frames: 5
+PASS Movie produces non-silent audio samples: 5
+PASS Movie audio track routed at full volume: 5
+PASS Exactly one active audio listener during movie: 5
+PASS New scene activates behind opaque black: 04_RescatePinguinos
+PASS Ice King -> movie 5 -> Penguins
+PASS Penguins start and countdown
+PASS All sixteen penguins enter refuge through real update logic
+PASS Movie prepares behind opaque black: 6
+PASS Movie decodes real frames: 6
+PASS Movie produces non-silent audio samples: 6
+PASS Movie audio track routed at full volume: 6
+PASS Exactly one active audio listener during movie: 6
+PASS Movie prepares behind opaque black: 7
+PASS Movie decodes real frames: 7
+PASS Movie produces non-silent audio samples: 7
+PASS Movie audio track routed at full volume: 7
+PASS Exactly one active audio listener during movie: 7
+PASS New scene activates behind opaque black: 05_JefeChicle
+PASS Penguins -> movies 6,7 -> Candy King
+PASS Two playable heroes in combat chapter 5
+PASS Both-player tutorial confirmations finish
+PASS Chapter 5 enemy 0 has visible replacement art
+PASS No duplicate enemy control 4/0
+PASS Chapter 5 enemy 1 has visible replacement art
+PASS No duplicate enemy control 4/1
+PASS Chapter 5 enemy 2 has visible replacement art
+PASS No duplicate enemy control 4/2
+PASS Chapter 5 enemy 3 has visible replacement art
+PASS No duplicate enemy control 4/3
+PASS Chapter 5 enemy 4 has visible replacement art
+PASS No duplicate enemy control 4/4
+PASS Chapter 5 enemy 5 has visible replacement art
+PASS No duplicate enemy control 4/5
+PASS Chapter 5 enemy 6 has visible replacement art
+PASS No duplicate enemy control 4/6
+PASS Live wave enemy visible: chapter 5 kind Walker
+PASS Real beam collision damages chapter 5 enemy Walker
+PASS Live wave enemy visible: chapter 5 kind Flyer
+PASS Real beam collision damages chapter 5 enemy Flyer
+PASS Live wave enemy visible: chapter 5 kind Cannon
+PASS Real beam collision damages chapter 5 enemy Cannon
+PASS Live wave enemy visible: chapter 5 kind Jumper
+PASS Real beam collision damages chapter 5 enemy Jumper
+PASS Live wave enemy visible: chapter 5 kind Chaser
+PASS Real beam collision damages chapter 5 enemy Chaser
+PASS Live wave enemy visible: chapter 5 kind Cannon
+PASS Real beam collision damages chapter 5 enemy Cannon
+PASS Live wave enemy visible: chapter 5 kind Walker
+PASS Real beam collision damages chapter 5 enemy Walker
+PASS Summoned guard remains visible
+PASS Live wave enemy visible: chapter 5 kind Walker
+PASS Real beam collision damages chapter 5 enemy Walker
+PASS Live wave enemy visible: chapter 5 kind Jumper
+PASS Real beam collision damages chapter 5 enemy Jumper
+PASS Live wave enemy visible: chapter 5 kind Flyer
+PASS Real beam collision damages chapter 5 enemy Flyer
+PASS Summoned guard remains visible
+PASS Live wave enemy visible: chapter 5 kind Jumper
+PASS Real beam collision damages chapter 5 enemy Jumper
+PASS All three combat waves finish in chapter 5
+PASS Candy King summons reinforcements before defeat
+PASS Movie prepares behind opaque black: 8
+PASS Movie decodes real frames: 8
+PASS Movie produces non-silent audio samples: 8
+PASS Movie audio track routed at full volume: 8
+PASS Exactly one active audio listener during movie: 8
+PASS Movie prepares behind opaque black: the final
+PASS Movie decodes real frames: the final
+PASS Movie produces non-silent audio samples: the final
+PASS Movie audio track routed at full volume: the final
+PASS Exactly one active audio listener during movie: the final
+PASS Candy King -> movie 8 -> the final -> completed
+PASS Exact complete movie order: 1,2,3,4,5,6,7,8,the final
+PASS Final transition restores simulation and audio
+PASS Re-entry chapter 1
+PASS Both-player tutorial confirmations finish
+PASS Chapter 1 enemy 0 has visible replacement art
+PASS No duplicate enemy control 0/0
+PASS Chapter 1 enemy 1 has visible replacement art
+PASS No duplicate enemy control 0/1
+PASS Chapter 1 enemy 2 has visible replacement art
+PASS No duplicate enemy control 0/2
+PASS Chapter 1 enemy 3 has visible replacement art
+PASS No duplicate enemy control 0/3
+PASS Chapter 1 enemy 4 has visible replacement art
+PASS No duplicate enemy control 0/4
+PASS Chapter 1 enemy 5 has visible replacement art
+PASS No duplicate enemy control 0/5
+PASS Chapter 1 enemy 6 has visible replacement art
+PASS No duplicate enemy control 0/6
+PASS Re-entry chapter 2
+PASS Re-entry chapter 3
+PASS Chapter 3 enemy 0 has visible replacement art
+PASS No duplicate enemy control 2/0
+PASS Ice enemy stays visible across pose changes 0
+PASS Chapter 3 enemy 1 has visible replacement art
+PASS No duplicate enemy control 2/1
+PASS Ice enemy stays visible across pose changes 1
+PASS Chapter 3 enemy 2 has visible replacement art
+PASS No duplicate enemy control 2/2
+PASS Ice enemy stays visible across pose changes 2
+PASS Chapter 3 enemy 3 has visible replacement art
+PASS No duplicate enemy control 2/3
+PASS Ice enemy stays visible across pose changes 3
+PASS Chapter 3 enemy 4 has visible replacement art
+PASS No duplicate enemy control 2/4
+PASS Ice enemy stays visible across pose changes 4
+PASS Chapter 3 enemy 5 has visible replacement art
+PASS No duplicate enemy control 2/5
+PASS Ice enemy stays visible across pose changes 5
+PASS Chapter 3 enemy 6 has visible replacement art
+PASS No duplicate enemy control 2/6
+PASS Ice enemy stays visible across pose changes 6
+PASS Re-entry chapter 4
+PASS Penguin timeout ends round without claiming a rescue
+PASS Re-entry chapter 5
+PASS Chapter 5 enemy 0 has visible replacement art
+PASS No duplicate enemy control 4/0
+PASS Chapter 5 enemy 1 has visible replacement art
+PASS No duplicate enemy control 4/1
+PASS Chapter 5 enemy 2 has visible replacement art
+PASS No duplicate enemy control 4/2
+PASS Chapter 5 enemy 3 has visible replacement art
+PASS No duplicate enemy control 4/3
+PASS Chapter 5 enemy 4 has visible replacement art
+PASS No duplicate enemy control 4/4
+PASS Chapter 5 enemy 5 has visible replacement art
+PASS No duplicate enemy control 4/5
+PASS Chapter 5 enemy 6 has visible replacement art
+PASS No duplicate enemy control 4/6
+PASS One fallen hero keeps cooperative game running
+PASS Partner contact revives fallen hero
+PASS Both fallen heroes trigger defeat
+PASS Restart rebuilds chapter and restores both heroes
+PASS Ice animation cache rebuilds destroyed sprites (Play Mode re-entry regression)
+Scope: real scenes, rendering, video decoding/end events, beam damage, boss phases, controlled neon mechanisms and refuge positioning. Movie playback seeks near end after decoding; this is not a manual full-duration playthrough.

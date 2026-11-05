@@ -1,0 +1,35 @@
+Vertical Bubblegum Play Mode QA: 0 failures. Real input for pushing and staircase traversal; explicit placement for isolated interactions/checkpoints.
+PASS Two existing animated players active immediately
+PASS Swept mint refuses to crush small player
+PASS Original walking controls
+PASS Pipo enters auxiliary tunnel
+PASS Large player cannot enter auxiliary tunnel
+PASS Invalid interaction indices rejected
+PASS Small auxiliary validated
+PASS Repeated interaction debounced
+PASS Lever A validated
+PASS Mimo physically pushes mint to open first ascent
+PASS Player 0 traverses full first vertical staircase with real inputs
+PASS Player 1 traverses full first vertical staircase with real inputs
+PASS Both players commit first floor checkpoint
+PASS Wrong fork returns mint
+PASS Fork becomes green
+PASS Correct route and mark activate physical pressure sensor
+PASS Player 0 traverses second staircase with real inputs
+PASS Player 1 traverses second staircase with real inputs
+PASS Garden checkpoint requires both players
+PASS Fall restores both and keeps solved doors
+PASS Switch refuses missing step
+PASS Small player cannot push heavy block
+PASS Large player physically places step
+PASS Garden switch accepts correctly placed step
+PASS Bubble animation completes with all colliders active
+PASS Interaction key does not drop grounded player through active bubble
+PASS Player 0 climbs step and final bubble garden using original inputs
+PASS Player 1 climbs step and final bubble garden using original inputs
+PASS Treasure checkpoint commits cooperatively
+PASS One player cannot collect fragment
+PASS Both players collect fragment
+PASS Reset during reward preserves fragment and bubble state
+PASS Exit waits for second player
+PASS Both players complete tower
