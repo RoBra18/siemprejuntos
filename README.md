@@ -34,7 +34,7 @@ Cada enemigo derrotado deja botín visible que se recoge tocándolo o cruzándol
 Guías: [Hielo y Resonancia](Assets/CoopExpansion/Documentation/EXPANSION.md), [Fuego y botín visible](Assets/ReinoDeFuego/0_5_Documentation/REINO_DE_FUEGO.md). Arte y prompts de Fuego: `Assets/ReinoDeFuego/0_3_Art/`. Resultados de pruebas: `Assets/ReinoDeFuego/0_6_QA/`.
 # Controles móviles y multijugador local
 
-- **Jugar** abre la campaña cooperativa en una sola pantalla. En móvil aparecen dos controles: un joystick por personaje, salto, bajar y un botón de ulti para cada uno. El teclado sigue disponible.
+- **Jugar** abre la campaña cooperativa en una sola pantalla. En móvil la interfaz es responsiva y adaptativa a cualquier pantalla: cada personaje cuenta únicamente con **un joystick 2D multifunción** (moverse a los lados, empujar arriba para saltar y abajo para descender de plataformas) y **un botón de Superpoder con icono de energía/rayo**, sin botones innecesarios en pantalla. El teclado sigue disponible.
 - **Multijugador local → Crear partida** convierte ese dispositivo en anfitrión y muestra su dirección IP. En el segundo dispositivo, abre **Multijugador local**, escribe esa IP y pulsa **Unirme**. Ambos deben estar en la misma red Wi-Fi. La partida se muestra en el anfitrión; el segundo móvil actúa como mando de Pipro. El anfitrión pulsa **Jugar como anfitrión**.
 - La conexión usa TCP en el puerto **27841**. Una red de punto de acceso móvil también sirve si ambos dispositivos pueden comunicarse por IP. Si se pierde la conexión, el segundo personaje deja de moverse y el anfitrión queda esperando una reconexión.
 - Durante la danza de la ulti, el joystick izquierdo/derecho y los botones de salto/bajar responden a las indicaciones de dirección.

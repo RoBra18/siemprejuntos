@@ -38,7 +38,7 @@ public static class GameDuoMobileRelease {
   instance.SetValue(null,input);
   apply.Invoke(input,new object[]{new Vector2(164,424)});apply.Invoke(input,new object[]{new Vector2(796,424)});
   Require(GameDuoMobileInput.Get(0).axis>.9f&&GameDuoMobileInput.Get(1).axis<-.9f,"both local joysticks have independent axes");
-  apply.Invoke(input,new object[]{new Vector2(326,425)});apply.Invoke(input,new object[]{new Vector2(634,300)});
+  apply.Invoke(input,new object[]{new Vector2(112,418-40)});apply.Invoke(input,new object[]{new Vector2(634,300)});
   edges.Invoke(input,new object[]{0});edges.Invoke(input,new object[]{1});
   Require(GameDuoMobileInput.Get(0).jumpPressed&&GameDuoMobileInput.Get(1).ultimatePressed,"jump and ultimate touch mapping");
   instance.SetValue(null,null);UnityEngine.Object.DestroyImmediate(go);
