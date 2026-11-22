@@ -23,7 +23,7 @@ public sealed class GameDuoLan : MonoBehaviour {
  [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
  static void ResetStatics(){Instance=null;Mode=LanMode.Local;}
  public static void Ensure(){if(Instance)return;var go=new GameObject("GameDuo / Red local");Instance=go.AddComponent<GameDuoLan>();if(Application.isPlaying)DontDestroyOnLoad(go);}
- public static void StartHost(){Ensure();Instance.StopNetwork();Mode=LanMode.Host;Instance.address=LocalAddress();Instance.status="Esperando al segundo móvil en "+Instance.address+":"+Port;Instance.worker=new Thread(Instance.HostLoop){IsBackground=true};Instance.worker.Start();}
+ public static void StartHost(){Ensure();Instance.StopNetwork();Mode=LanMode.Host;Instance.address=LocalAddress();Instance.status="Esperando a Pipro…";Instance.worker=new Thread(Instance.HostLoop){IsBackground=true};Instance.worker.Start();}
  public static void Join(string ip){Ensure();Instance.StopNetwork();Mode=LanMode.Guest;Instance.address=ip.Trim();Instance.status="Conectando a "+Instance.address;Instance.worker=new Thread(Instance.GuestLoop){IsBackground=true};Instance.worker.Start();}
  public static void Local(){if(Instance)Instance.StopNetwork();Mode=LanMode.Local;}
  public static void Send(GameDuoMobileInput.State state){if(Instance){lock(Instance.sync)Instance.outgoing=state;}}

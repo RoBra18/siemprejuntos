@@ -11,6 +11,7 @@ public class CandyPixelHUD:MonoBehaviour {
    if(game.Announcement!=""){PixelFont.Panel(new Rect(170,120,300,45),PixelFont.Ink,PixelFont.Pink);PixelFont.Text(320,136,game.Announcement,2,PixelFont.Cream,true);}
    foreach(var e in game.enemies){var boss=e?e.GetComponent<CandyBoss>():null;if(!boss)continue;PixelFont.Panel(new Rect(130,83,380,38),PixelFont.Ink,PixelFont.Pink);PixelFont.Fill(new Rect(140,91,360,5),new Color(.3f,.15f,.35f));PixelFont.Fill(new Rect(140,91,360*Mathf.Clamp01(e.Health/e.maxHealth),5),PixelFont.Pink);PixelFont.Text(320,104,"TIO USURPADOR / FASE "+boss.Phase+" / "+(boss.Vulnerable?"NUCLEO ABIERTO":"ESQUIVEN LAS PERLAS"),1,PixelFont.Cream,true);}
   }
+  if(game.Victory&&!game.Practice&&GameDuoCampaign.InCampaignScene)return;
   if(game.Victory||exit&&exit.Arriving){PixelFont.Panel(new Rect(145,72,350,45),PixelFont.Ink,PixelFont.Mint);PixelFont.Text(320,83,game.Victory?"VICTORIA! ARRIBA, EQUIPO!":"UN NUEVO RINCON DEL REINO",2,PixelFont.Cream,true);PixelFont.Text(320,102,game.Victory?"R REINICIAR / M MAPA":"PREPARADOS PARA ENLAZAR",1,PixelFont.Mint,true);return;}
   if(game.Started&&game.Running||TutorialFactory.IsTutorial&&!game.Started)return;
   PixelFont.Panel(new Rect(65,74,510,235),new Color(.13f,.07f,.23f,.98f),PixelFont.Pink);

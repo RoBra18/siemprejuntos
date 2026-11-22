@@ -27,21 +27,101 @@ public static class GameDuoMobileRelease {
   var menu=EditorSceneManager.OpenScene(GameDuoMainMenu.ScenePath,OpenSceneMode.Additive);
   try{Require(FindInScene<GameDuoMainMenu>(menu),"multiplayer menu component present");}finally{EditorSceneManager.CloseScene(menu,true);}
   CheckTouchMapping();
+  CheckDanceDirections();
   try{CheckHostTransport();CheckGuestTransport();}
   finally{GameDuoLan.Local();if(GameDuoLan.Instance)UnityEngine.Object.DestroyImmediate(GameDuoLan.Instance.gameObject);}
   Debug.Log("MOBILE_QA_COMPLETE");
  }
  static T FindInScene<T>(Scene scene) where T:Component{foreach(var root in scene.GetRootGameObjects()){var match=root.GetComponentInChildren<T>(true);if(match)return match;}return null;}
  static void CheckTouchMapping(){
-  var go=new GameObject("Mobile input QA");var input=go.AddComponent<GameDuoMobileInput>();
-  var type=typeof(GameDuoMobileInput);var instance=type.GetField("instance",BindingFlags.Static|BindingFlags.NonPublic);var apply=type.GetMethod("Apply",BindingFlags.Instance|BindingFlags.NonPublic);var edges=type.GetMethod("Edges",BindingFlags.Instance|BindingFlags.NonPublic);
+  var go=new GameObject("Mobile input QA");
+  var input=go.AddComponent<GameDuoMobileInput>();
+  var type=typeof(GameDuoMobileInput);
+  const BindingFlags methods=BindingFlags.Instance|BindingFlags.NonPublic;
+  var instance=type.GetField("instance",BindingFlags.Static|BindingFlags.NonPublic);
+  var original=instance.GetValue(null);
+  var layout=type.GetMethod("GetLayout",BindingFlags.Static|BindingFlags.NonPublic);
+  var begin=type.GetMethod("BeginInputFrame",methods);
+  var end=type.GetMethod("EndInputFrame",methods);
+  var track=type.GetMethod("TrackPointer",methods);
+  var reset=type.GetMethod("ResetInput",methods);
+  Vector2 stick0=default,super0=default,stick1=default,super1=default;
+  void Layout(GameDuoLan.LanMode mode,float left,float right,float bottom){
+   var args=new object[]{mode,left,right,bottom,null,null,null,null};
+   layout.Invoke(null,args);
+   stick0=(Vector2)args[4];super0=(Vector2)args[5];stick1=(Vector2)args[6];super1=(Vector2)args[7];
+  }
+  void Track(int pointer,bool pressed,Vector2 position,GameDuoLan.LanMode mode=GameDuoLan.LanMode.Local){
+   track.Invoke(input,new object[]{pointer,pressed,position,mode,stick0,super0,stick1,super1});
+  }
   instance.SetValue(null,input);
-  apply.Invoke(input,new object[]{new Vector2(164,424)});apply.Invoke(input,new object[]{new Vector2(796,424)});
-  Require(GameDuoMobileInput.Get(0).axis>.9f&&GameDuoMobileInput.Get(1).axis<-.9f,"both local joysticks have independent axes");
-  apply.Invoke(input,new object[]{new Vector2(112,418-40)});apply.Invoke(input,new object[]{new Vector2(634,300)});
-  edges.Invoke(input,new object[]{0});edges.Invoke(input,new object[]{1});
-  Require(GameDuoMobileInput.Get(0).jumpPressed&&GameDuoMobileInput.Get(1).ultimatePressed,"jump and ultimate touch mapping");
-  instance.SetValue(null,null);UnityEngine.Object.DestroyImmediate(go);
+  try{
+   foreach(float width in new[]{640f,720f,960f,1200f}){
+    Layout(GameDuoLan.LanMode.Local,42f,width-22f,522f);
+    Require(Vector2.Distance(stick0,super0)>110f&&Vector2.Distance(stick1,super1)>110f&&
+     Vector2.Distance(super0,super1)>84f&&Vector2.Distance(stick0,stick1)>136f&&
+     Vector2.Distance(stick0,super1)>110f&&Vector2.Distance(stick1,super0)>110f,
+     $"local touch areas remain separate at width {width}");
+   }
+   Layout(GameDuoLan.LanMode.Local,0f,960f,540f);
+   begin.Invoke(input,null);
+   Track(0,true,stick0+Vector2.right*45f);
+   Track(1,true,stick1+Vector2.left*45f);
+   end.Invoke(input,null);
+   Require(GameDuoMobileInput.Get(0).axis>.9f&&GameDuoMobileInput.Get(1).axis<-.9f,"both local joysticks have independent axes");
+
+   begin.Invoke(input,null);
+   Track(0,false,super0);
+   Track(1,false,super0);
+   end.Invoke(input,null);
+   Require(GameDuoMobileInput.Get(0).axis>.5f&&GameDuoMobileInput.Get(1).axis<-.9f&&
+    !GameDuoMobileInput.Get(0).ultimate&&!GameDuoMobileInput.Get(1).ultimate,
+    "sticks retain ownership when dragged into the super or across the screen");
+
+   begin.Invoke(input,null);
+   Track(0,false,stick0+Vector2.up*45f);
+   Track(1,false,stick1+Vector2.left*45f);
+   Track(2,true,super0);
+   Track(3,true,super1);
+   end.Invoke(input,null);
+   Require(GameDuoMobileInput.Get(0).downPressed&&GameDuoMobileInput.Get(0).ultimatePressed&&
+    GameDuoMobileInput.Get(1).axis<-.9f&&GameDuoMobileInput.Get(1).ultimatePressed,
+    "both players can press super while holding their sticks");
+
+   begin.Invoke(input,null);
+   Track(2,false,stick0);
+   Track(4,false,super1);
+   Track(5,true,new Vector2(634f,300f));
+   end.Invoke(input,null);
+   Require(GameDuoMobileInput.Get(0).axis==0f&&GameDuoMobileInput.Get(0).ultimate&&
+    !GameDuoMobileInput.Get(0).ultimatePressed&&GameDuoMobileInput.Get(1).axis==0f&&
+    !GameDuoMobileInput.Get(1).ultimate,"released sticks clear, super holds without repeating, and stray touches stay inactive");
+
+   foreach(var mode in new[]{GameDuoLan.LanMode.Host,GameDuoLan.LanMode.Guest}){
+    reset.Invoke(input,null);
+    Layout(mode,42f,680f,522f);
+    begin.Invoke(input,null);
+    Track(0,true,stick0+Vector2.right*45f,mode);
+    Track(1,true,super0,mode);
+    end.Invoke(input,null);
+    int player=mode==GameDuoLan.LanMode.Host?0:1;
+    Require(GameDuoMobileInput.Get(player).axis>.9f&&GameDuoMobileInput.Get(player).ultimatePressed&&
+     GameDuoMobileInput.Get(1-player).axis==0f&&!GameDuoMobileInput.Get(1-player).ultimate,
+     $"{mode} local touches belong only to its assigned player");
+   }
+  }finally{
+   instance.SetValue(null,original);
+   UnityEngine.Object.DestroyImmediate(go);
+  }
+ }
+ static void CheckDanceDirections(){
+  var direction=typeof(CoopInteractionDirector).GetMethod("Direction",BindingFlags.Static|BindingFlags.NonPublic);
+  int Read(GameDuoMobileInput.State state)=>(int)direction.Invoke(null,new object[]{state});
+  Require(Read(default)==-1&&Read(new GameDuoMobileInput.State{axis=.2f})==-1,"dance ignores neutral and short lateral movements");
+  Require(Read(new GameDuoMobileInput.State{jump=true})==0&&Read(new GameDuoMobileInput.State{down=true})==2,"dance recognizes vertical stick directions");
+  Require(Read(new GameDuoMobileInput.State{axis=-.8f})==1&&Read(new GameDuoMobileInput.State{axis=.8f})==3,"dance recognizes horizontal stick directions");
+  Require(Read(new GameDuoMobileInput.State{axis=.99f,jump=true})==3&&Read(new GameDuoMobileInput.State{axis=.65f,down=true})==2,
+   "dance resolves diagonal input to a single direction");
  }
  static void CheckHostTransport(){
   GameDuoLan.StartHost();
@@ -57,6 +137,35 @@ public static class GameDuoMobileRelease {
   }finally{listener.Stop();}
  }
  static TcpClient Connect(int timeoutMs){var client=new TcpClient();var ar=client.BeginConnect(IPAddress.Loopback,GameDuoLan.Port,null,null);if(!ar.AsyncWaitHandle.WaitOne(timeoutMs)){client.Close();throw new Exception("MOBILE_QA_FAILED: host socket timeout");}client.EndConnect(ar);return client;}
+ [MenuItem("Tools/DimDam/Crear APK de prueba")]
+ public static void BuildTestApk(){
+  if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android,BuildTarget.Android)){
+   EditorUtility.DisplayDialog("Android Build Support","Instala Android Build Support, SDK y NDK, y OpenJDK desde Unity Hub para esta versión de Unity.","Aceptar");
+   return;
+  }
+  string output=EditorUtility.SaveFilePanel("Guardar APK de prueba",Path.GetFullPath("."),"DimDam-prueba","apk");
+  if(string.IsNullOrEmpty(output))return;
+
+  bool appBundle=EditorUserBuildSettings.buildAppBundle;
+  bool exportProject=EditorUserBuildSettings.exportAsGoogleAndroidProject;
+  bool customKeystore=PlayerSettings.Android.useCustomKeystore;
+  try{
+   EditorUserBuildSettings.buildAppBundle=false;
+   EditorUserBuildSettings.exportAsGoogleAndroidProject=false;
+   PlayerSettings.Android.useCustomKeystore=false;
+   var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{
+    scenes=GameDuoCampaignBuildScenes(),locationPathName=output,target=BuildTarget.Android,options=BuildOptions.None
+   });
+   if(report.summary.result!=BuildResult.Succeeded)throw new Exception("APK de prueba: "+report.summary.result);
+   Debug.Log("APK de prueba generado: "+output);
+   EditorUtility.RevealInFinder(output);
+  }finally{
+   EditorUserBuildSettings.buildAppBundle=appBundle;
+   EditorUserBuildSettings.exportAsGoogleAndroidProject=exportProject;
+   PlayerSettings.Android.useCustomKeystore=customKeystore;
+  }
+ }
+
  [MenuItem("Tools/DimDam/Crear AAB Android")]
  public static void BuildAndroid(){
   Validate();

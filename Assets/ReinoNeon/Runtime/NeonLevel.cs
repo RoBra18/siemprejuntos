@@ -19,30 +19,33 @@ public class NeonLevel:MonoBehaviour {
  if(!roundStarted||p<0||p>1||!game.Running||Time.time-last[p]<.2f)return false;
  foreach(var d in crossed)if(d.player==p&&!d.powered&&Reach(p,d.transform)){d.Set(true);d.target.Set(true);last[p]=Time.time;Say(p==0?"Mimo abre el camino de Pipro":"Pipro abre el camino de Mimo");return true;}
  bool ok=false;
- if(p==1&&SocketA&&Reach(p,terminal)){Routed=!Routed;Say(Routed?"Circuito B listo. Mimo: bateria al segundo zocalo":"Circuito A. Puedes volver a cambiar la ruta");ok=true;}
+ if(p==1&&SocketA&&Reach(p,terminal)){Routed=!Routed;Say(Routed?"Mimo, lleva la batería al segundo zócalo":"Circuito A activo");ok=true;}
  else if(RelayDone&&!Restored){
- if(p==0&&CoreStep==0&&Reach(p,coreA)){CoreStep=1;deadline=Time.time+CoreStepDuration;coreBridge.SetActive(true);Say("Pipro cruza y cambia la direccion. 25 segundos");ok=true;}
- else if(p==1&&CoreStep==1&&Reach(p,coreB)){CoreStep=2;deadline=Time.time+CoreStepDuration;Say("Ahora Pipro sostiene el puente. Mimo: panel derecho");ok=true;}
- else if(p==0&&CoreStep==2&&Reach(p,coreC)){CoreStep=3;deadline=Time.time+CoreStepDuration;Say("Intercambio listo. Cada uno a su placa de carga");ok=true;}
+ if(p==0&&CoreStep==0&&Reach(p,coreA)){CoreStep=1;deadline=Time.time+CoreStepDuration;coreBridge.SetActive(true);Say("Pipro, cruza y cambia la dirección");ok=true;}
+ else if(p==1&&CoreStep==1&&Reach(p,coreB)){CoreStep=2;deadline=Time.time+CoreStepDuration;Say("Mimo, activa el panel derecho");ok=true;}
+ else if(p==0&&CoreStep==2&&Reach(p,coreC)){CoreStep=3;deadline=Time.time+CoreStepDuration;Say("Cada uno a su placa de carga");ok=true;}
  }
  if(ok){last[p]=Time.time;BeamFX.Burst(game.players[p].transform.position,Color.cyan,10);game.Tone(660,.1f);}return ok;
  }
- void Update(){if(GameDuoCinema.Busy)return;
+ void Update(){if(GameDuoCinema.Busy||Completed&&GameDuoCampaign.InCampaignScene)return;
  if(TimedOut){var keyboard=Keyboard.current;if(keyboard!=null&&keyboard.rKey.wasPressedThisFrame)game.Restart();return;}
- var k=Keyboard.current;if(k!=null){if(!roundStarted&&startGate.Poll())roundStarted=true;if(k.rKey.wasPressedThisFrame){ResetTogether();return;}if(k.mKey.wasPressedThisFrame){CandyCampaign.Map();return;}if(k.sKey.wasPressedThisFrame)Interact(0);if(k.downArrowKey.wasPressedThisFrame)Interact(1);}
- if(!roundStarted)return; if(!Completed){RoundRemaining=Mathf.Max(0,RoundRemaining-Time.deltaTime); if(RoundRemaining<=0){FailTimeout();return;}}
+ if(!roundStarted&&startGate.Poll())roundStarted=true;
+ var k=Keyboard.current;if(k!=null){if(k.rKey.wasPressedThisFrame){ResetTogether();return;}if(k.mKey.wasPressedThisFrame){CandyCampaign.Map();return;}if(k.sKey.wasPressedThisFrame)Interact(0);if(k.downArrowKey.wasPressedThisFrame)Interact(1);}
+ if(!roundStarted)return;
+ for(int i=0;i<2;i++)if(GameDuoMobileInput.Get(i).downPressed)Interact(i);
+ if(!Completed){RoundRemaining=Mathf.Max(0,RoundRemaining-Time.deltaTime); if(RoundRemaining<=0){FailTimeout();return;}}
  foreach(var p in game.players)if(p.Dead||p.transform.position.y< -3){ResetTogether();return;}
- if(CrossedCount==6&&!entryGate.powered){entryGate.Set(true);Say("Circuitos cruzados completos. Reunanse en el relevo");}
- if(Checkpoint<1&&entryGate.powered&&BothBeyond(13)){Checkpoint=1;Say("Control 1 / Mimo empuja; Pipro toma el elevador");}
+ if(CrossedCount==6&&!entryGate.powered){entryGate.Set(true);Say("Reúnanse en el relevo");}
+ if(Checkpoint<1&&entryGate.powered&&BothBeyond(13)){Checkpoint=1;Say("Mimo empuja. Pipro usa el elevador");}
  SocketA=Mathf.Abs(battery.transform.position.x-socketA.position.x)<.32f;
  relayBridge.SetActive(SocketA||RelayDone);battery.maxX=Routed?22:18;
- if(!RelayDone&&Routed&&Mathf.Abs(battery.transform.position.x-socketB.position.x)<.32f){RelayDone=true;battery.Locked=true;relayGate.Set(true);Say("Relevo completo. El nucleo espera a los dos");}
- if(Checkpoint<2&&RelayDone&&BothBeyond(35)){Checkpoint=2;Say("Control 2 / Mimo inicia; Pipro invierte; Mimo confirma");}
- if(!Restored&&CoreStep>0){if(Remaining<=0){FailTimeout();return;}else if(CoreStep==3){charge=Near(0,padA,1)&&Near(1,padB,1)?Mathf.Min(2.5f,charge+Time.deltaTime):Mathf.Max(0,charge-Time.deltaTime*.5f);if(charge>=2.5f){Restored=true;Checkpoint=3;finalGate.Set(true);rewardTime=Time.time;Say("Nucleo restaurado. El corazon los espera juntos");game.Tone(990,.3f);}}}
+ if(!RelayDone&&Routed&&Mathf.Abs(battery.transform.position.x-socketB.position.x)<.32f){RelayDone=true;battery.Locked=true;relayGate.Set(true);Say("Reúnanse en el núcleo");}
+ if(Checkpoint<2&&RelayDone&&BothBeyond(35)){Checkpoint=2;Say("Mimo inicia. Pipro invierte. Mimo confirma");}
+ if(!Restored&&CoreStep>0){if(Remaining<=0){FailTimeout();return;}else if(CoreStep==3){charge=Near(0,padA,1)&&Near(1,padB,1)?Mathf.Min(2.5f,charge+Time.deltaTime):Mathf.Max(0,charge-Time.deltaTime*.5f);if(charge>=2.5f){Restored=true;Checkpoint=3;finalGate.Set(true);rewardTime=Time.time;Say("Núcleo restaurado");game.Tone(990,.3f);}}}
  reactor.sprite=reactorFrames[Restored?Mathf.Min(3,1+(int)((Time.time-rewardTime)*1.5f)):CoreStep>0?1:0];
  if(Restored&&Time.time-rewardTime<3&&Time.frameCount%8==0)BeamFX.Burst(reactor.transform.position,Color.cyan,3);
- if(Restored&&!Collected&&Near(0,fragment,1.8f)&&Near(1,fragment,1.8f)){Collected=true;fragment.gameObject.SetActive(false);PlayerPrefs.SetInt("ReinoNeon.FriendshipFragment",1);PlayerPrefs.Save();BeamFX.Burst(fragment.position,Color.magenta,30);Say("FRAGMENTO DEL CORAZON RECUPERADO / JUNTOS BRILLAMOS");}
- if(Collected&&!Completed&&Near(0,exit,1.5f)&&Near(1,exit,1.5f)){Completed=true;Say("CIRCUITOS CRUZADOS COMPLETADOS / M PARA VOLVER AL MAPA");game.Tone(1320,.4f);}
+ if(Restored&&!Collected&&Near(0,fragment,1.8f)&&Near(1,fragment,1.8f)){Collected=true;fragment.gameObject.SetActive(false);PlayerPrefs.SetInt("ReinoNeon.FriendshipFragment",1);PlayerPrefs.Save();BeamFX.Burst(fragment.position,Color.magenta,30);Say("Fragmento del corazón recuperado");}
+ if(Collected&&!Completed&&Near(0,exit,1.5f)&&Near(1,exit,1.5f)){Completed=true;Say("Circuitos cruzados completados");game.Tone(1320,.4f);}
  }
  bool BothBeyond(float x)=>game.players[0].transform.position.x>x&&game.players[1].transform.position.x>x;
  void FailTimeout(){TimedOut=true;game.FailRound();foreach(var player in game.players){var body=player.GetComponent<Rigidbody2D>();if(body)body.linearVelocity=Vector2.zero;}}
@@ -53,7 +56,7 @@ public class NeonLevel:MonoBehaviour {
  if(Checkpoint==0){foreach(var d in crossed){d.Set(false);d.target.Set(false);}entryGate.Set(false);}
  if(Checkpoint<2){battery.Restore();Routed=RelayDone=false;SocketA=false;relayGate.Set(false);battery.maxX=18;}
  if(!Restored){CoreStep=0;charge=0;coreBridge.SetActive(false);}else coreBridge.SetActive(true);
- PlaceTogether(Checkpoint==0?new Vector2(-8,1):Checkpoint==1?new Vector2(14.5f,1):Checkpoint==2?new Vector2(37,1):new Vector2(54,1));last[0]=last[1]=-1;Say("Equipo recuperado. Se conserva el ultimo control");
+ PlaceTogether(Checkpoint==0?new Vector2(-8,1):Checkpoint==1?new Vector2(14.5f,1):Checkpoint==2?new Vector2(37,1):new Vector2(54,1));last[0]=last[1]=-1;Say("Equipo reunido en el último control");
  }
  void DrawInteractionPrompt(int player,Transform target){
   var camera=Camera.main;if(!camera||!Reach(player,target))return;
@@ -61,8 +64,9 @@ public class NeonLevel:MonoBehaviour {
   if(at.z<=0||at.x<0||at.x>1||at.y<0||at.y>1)return;
   float x=Mathf.Clamp(at.x*640,52,588),y=Mathf.Clamp((1-at.y)*360,105,265);
   var color=CoopPresentation.PlayerColor(player);
-  CoopPromptUI.Key(new Rect(x-16,y-16,32,29),"S",color,true,player==1?2:-1);
-  CoopPromptUI.Text(new Rect(x-50,y+16,100,18),player==0?"MIMO / ACTIVAR":"PIPRO / ACTIVAR",10,color);
+  if(GameDuoCampaign.InCampaignScene&&CoopPromptUI.TouchControls)CoopPromptUI.Stick(new Vector2(x,y),16,2,color);
+  else CoopPromptUI.Key(new Rect(x-16,y-16,32,29),"S",color,true,player==1?2:-1);
+  CoopPromptUI.Text(new Rect(x-50,y+16,100,18),player==0?"Mimo":"Pipro",10,color);
  }
  void DrawInteractionPrompts(){
   if(!game.Running||Completed)return;
@@ -74,16 +78,24 @@ public class NeonLevel:MonoBehaviour {
    else if(CoreStep==2)DrawInteractionPrompt(0,coreC);
   }
  }
- void OnGUI(){if(GameDuoCinema.Busy)return;GUI.depth=-10;PixelFont.Begin();PixelFont.Panel(new Rect(2,2,636,38),PixelFont.Ink,Color.cyan);PixelFont.Text(12,8,"THE NEON CORE / CIRCUITOS CRUZADOS",1,PixelFont.Cream);string objective=Completed?"JUNTOS BRILLAMOS / M VOLVER AL MAPA":Collected?"REUNANSE EN EL PORTAL":Restored?"RECOJAN JUNTOS EL FRAGMENTO":RelayDone?"NUCLEO / MIMO > PIPRO > MIMO > DOS PLACAS":entryGate.powered?"RELEVO / BATERIA A > TERMINAL PIPRO > BATERIA B":"MI ACCION ABRE TU CAMINO / CIRCUITOS "+CrossedCount+"/6";PixelFont.Text(12,25,objective,1,Color.cyan);
- if(TimedOut){PixelFont.Panel(new Rect(65,90,510,205),PixelFont.Ink,PixelFont.Pink);PixelFont.Text(320,115,"FIN DE LA PARTIDA",2,PixelFont.Pink,true);PixelFont.Text(320,154,"SE ACABO EL TIEMPO",2,PixelFont.Cream,true);PixelFont.Text(320,195,"REINICIEN EL NIVEL DESDE CERO",1,Color.cyan,true);if(PixelFont.Button(new Rect(220,245,200,28),"R / REINICIAR",true))game.Restart();return;}
- PixelFont.Text(320,76,"TIEMPO "+Mathf.CeilToInt(RoundRemaining)+" S",2,RoundRemaining<30?Color.magenta:Color.cyan,true);if(!roundStarted){CoopPromptUI.Panel(new Rect(65,74,510,235),CoopPromptUI.Mint);startGate.Draw(210);return;}
+ void OnGUI(){if(GameDuoCinema.Busy)return;bool touch=GameDuoCampaign.InCampaignScene&&CoopPromptUI.TouchControls;GUI.depth=-10;PixelFont.Begin();PixelFont.Panel(new Rect(2,2,636,38),PixelFont.Ink,Color.cyan);PixelFont.Text(12,8,"Reino Neón · Circuitos cruzados",1,PixelFont.Cream);string objective=Completed?"Juntos brillamos":Collected?"Reúnanse en el portal":Restored?"Recojan juntos el fragmento":RelayDone?"Restauren el núcleo":entryGate.powered?(Routed?"Lleven la batería al zócalo B":SocketA?"Pipro, cambia la ruta":"Lleven la batería al zócalo A"):"Circuitos activados: "+CrossedCount+"/6";PixelFont.Text(12,25,objective,1,Color.cyan);
+ if(TimedOut){PixelFont.Panel(new Rect(65,90,510,205),PixelFont.Ink,PixelFont.Pink);CoopPromptUI.Text(new Rect(105,129,430,54),"Se acabó el tiempo",24,PixelFont.Pink);if(PixelFont.Button(new Rect(220,245,200,28),touch?"Reintentar":"R / REINICIAR",true))game.Restart();return;}
+ PixelFont.Text(320,76,"TIEMPO "+Mathf.CeilToInt(RoundRemaining)+" S",2,RoundRemaining<30?Color.magenta:Color.cyan,true);if(!roundStarted){CoopPromptUI.Panel(new Rect(65,74,510,235),CoopPromptUI.Mint);
+  if(touch){
+   CoopPromptUI.Text(new Rect(105,93,430,37),"Circuitos cruzados",20,CoopPromptUI.Mint);
+   CoopPromptUI.Stick(new Vector2(320,166),25,2,CoopPromptUI.Mint);
+   CoopPromptUI.Text(new Rect(120,262,400,28),"Inclinen el joystick hacia abajo junto al interruptor.",13);
+  }
+  startGate.Draw(210,!touch);return;}
  DrawInteractionPrompts();
- PixelFont.Panel(new Rect(2,328,636,30),PixelFont.Ink,Color.magenta);
- PixelFont.Text(320,334,"ACTIVAR INTERRUPTORES: MIMO / S | PIPRO / FLECHA ABAJO",1,PixelFont.Cream,true);
- if(!GameDuoCampaign.InCampaignScene)PixelFont.Text(10,347,"R RECUPERAR / M MAPA / CONTROL "+Checkpoint+"/3",1,Color.cyan);
- if(Time.time<noticeUntil){PixelFont.Panel(new Rect(8,300,624,22),PixelFont.Ink,Color.cyan);PixelFont.Text(14,307,notice.ToUpperInvariant(),1,PixelFont.Cream);}
+ if(!touch){
+  PixelFont.Panel(new Rect(2,328,636,30),PixelFont.Ink,Color.magenta);
+  PixelFont.Text(320,334,"Activar: Mimo con S · Pipro con flecha abajo",1,PixelFont.Cream,true);
+  if(!GameDuoCampaign.InCampaignScene)PixelFont.Text(10,347,"R: reagrupar · M: mapa · Control "+Checkpoint+"/3",1,Color.cyan);
+ }
+ if(Time.time<noticeUntil){CoopPromptUI.Panel(new Rect(140,302,360,24),Color.cyan);CoopPromptUI.Text(new Rect(147,302,346,24),notice,11,PixelFont.Cream);}
  if(CoreStep>0&&!Restored){PixelFont.Text(320,49,"ESTABILIDAD "+Mathf.CeilToInt(Remaining)+" / CARGA "+Mathf.RoundToInt(charge/2.5f*100)+"%",1,Color.cyan,true);PixelFont.Fill(new Rect(220,62,200*charge/2.5f,4),Color.cyan);}
- if(Completed&&PixelFont.Button(new Rect(180,80,280,28),"VOLVER AL MAPA",true))CandyCampaign.Map();
+ if(Completed&&!GameDuoCampaign.InCampaignScene&&PixelFont.Button(new Rect(180,80,280,28),"VOLVER AL MAPA",true))CandyCampaign.Map();
  }
 }
 }

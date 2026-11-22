@@ -16,7 +16,13 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
 
     readonly State[] current = new State[2], previous = new State[2];
     readonly Vector2[] visualKnob = new Vector2[2];
-    readonly bool[] touchActive = new bool[2];
+    struct Capture {
+        public int? pointer;
+        public bool seen;
+    }
+
+    readonly Capture[] sticks = new Capture[2], supers = new Capture[2];
+    GameDuoLan.LanMode inputMode;
 
     const float RefHeight = 540f;
     const float StickTravel = 52f;
@@ -51,7 +57,14 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         return instance ? instance.current[Mathf.Clamp(player, 0, 1)] : default;
     }
 
-    static bool Playable => !GameDuoCinema.Busy && (
+    // The campaign already renders mouse-testable touch controls in the Editor.
+    // Use the matching prompts there even without a simulated touchscreen.
+    public static bool TouchControls => Application.isMobilePlatform || Touchscreen.current != null ||
+        GameDuoLan.Mode != GameDuoLan.LanMode.Local ||
+        Application.isEditor && (GameDuoCampaign.InCampaignScene ||
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().path == GameDuoMainMenu.ScenePath);
+
+    static bool Playable => !GameDuoCinema.Busy && !GameDuoTutorial.BlocksGameplay && !GameDuoCampaign.MissionWon && (
         (GameManager.Instance && GameManager.Instance.players != null && GameManager.Instance.players.Length == 2) ||
         (GameDuoCampaign.Active && GameDuoCampaign.Instance.Stage == 3)
     );
@@ -65,123 +78,134 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         return new Vector2(screen.x / s, (Screen.height - screen.y) / s);
     }
 
-    // Compatibilidad
-    static Vector2 ToGui(Vector2 screen) => ScreenToVirtual(screen);
-
     public static void GetLayout(out Vector2 stick0, out Vector2 super0, out Vector2 stick1, out Vector2 super1) {
         float s = Scale;
-        float vw = VirtualWidth;
         Rect safe = Screen.safeArea;
-        float safeL = safe.xMin / s;
-        float safeR = (Screen.width - safe.xMax) / s;
+        if (safe.width <= 0f || safe.height <= 0f) safe = new Rect(0f, 0f, Screen.width, Screen.height);
+        GetLayout(GameDuoLan.Mode, safe.xMin / s, safe.xMax / s, (Screen.height - safe.yMin) / s,
+            out stick0, out super0, out stick1, out super1);
+    }
 
-        float padL = Mathf.Max(safeL, 0f);
-        float padR = Mathf.Max(safeR, 0f);
-
-        if (GameDuoLan.Mode == GameDuoLan.LanMode.Guest) {
-            // Modo invitado (1 móvil para el 2do jugador): joystick a la izquierda, superpoder a la derecha
-            stick0 = super0 = Vector2.zero;
-            stick1 = new Vector2(padL + 120f, 418f);
-            super1 = new Vector2(vw - padR - 120f, 418f);
-        } else {
-            // Modo local compartido (2 jugadores en 1 pantalla):
-            // Jugador 0 (Mora/Mimo - Izquierda):
-            stick0 = new Vector2(padL + 112f, 418f);
-            super0 = new Vector2(padL + 232f, 360f);
-
-            // Jugador 1 (Lima/Pipro - Derecha):
-            stick1 = new Vector2(vw - padR - 112f, 418f);
-            super1 = new Vector2(vw - padR - 232f, 360f);
+    static void GetLayout(GameDuoLan.LanMode mode, float left, float right, float bottom,
+        out Vector2 stick0, out Vector2 super0, out Vector2 stick1, out Vector2 super1) {
+        float stickY = bottom - 122f;
+        if (mode != GameDuoLan.LanMode.Local) {
+            stick0 = stick1 = new Vector2(left + 112f, stickY);
+            super0 = super1 = new Vector2(right - 112f, stickY);
+            return;
         }
+
+        float superInset = Mathf.Min(215f, (right - left) * 0.5f - SuperRadius - 10f);
+        float superY = stickY - 110f;
+        stick0 = new Vector2(left + 112f, stickY);
+        stick1 = new Vector2(right - 112f, stickY);
+        super0 = new Vector2(left + superInset, superY);
+        super1 = new Vector2(right - superInset, superY);
+    }
+
+    void ResetInput() {
+        System.Array.Clear(sticks, 0, sticks.Length);
+        System.Array.Clear(supers, 0, supers.Length);
+        System.Array.Clear(visualKnob, 0, visualKnob.Length);
+        current[0] = current[1] = previous[0] = previous[1] = default;
+    }
+
+    void OnApplicationPause(bool paused) {
+        if (!paused) return;
+        ResetInput();
+        if (GameDuoLan.Mode == GameDuoLan.LanMode.Guest) GameDuoLan.Send(default);
     }
 
     void Update() {
-        if (!Playable && GameDuoLan.Mode != GameDuoLan.LanMode.Guest) {
-            current[0] = current[1] = default;
+        var mode = GameDuoLan.Mode;
+        if (inputMode != mode) {
+            ResetInput();
+            inputMode = mode;
+        }
+        if (!Playable && mode != GameDuoLan.LanMode.Guest) {
+            ResetInput();
             return;
         }
 
+        BeginInputFrame();
+        if (mode == GameDuoLan.LanMode.Host) current[1] = GameDuoLan.Remote;
+
+        GetLayout(out Vector2 stick0, out Vector2 super0, out Vector2 stick1, out Vector2 super1);
+        var touchscreen = Touchscreen.current;
+        if (touchscreen != null) {
+            var touches = touchscreen.touches;
+            for (int t = 0; t < touches.Count; t++) {
+                var touch = touches[t];
+                if (!touch.press.isPressed) ReleasePointer(t);
+            }
+            for (int t = 0; t < touches.Count; t++) {
+                var touch = touches[t];
+                if (!touch.press.isPressed) continue;
+                TrackPointer(t, touch.press.wasPressedThisFrame, ScreenToVirtual(touch.position.ReadValue()),
+                    mode, stick0, super0, stick1, super1);
+            }
+        }
+
+        var mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.isPressed) {
+            TrackPointer(-1, mouse.leftButton.wasPressedThisFrame, ScreenToVirtual(mouse.position.ReadValue()),
+                mode, stick0, super0, stick1, super1);
+        }
+
+        EndInputFrame();
+        if (mode == GameDuoLan.LanMode.Guest) GameDuoLan.Send(current[1]);
+    }
+
+    void BeginInputFrame() {
         for (int i = 0; i < 2; i++) {
             previous[i] = current[i];
             current[i] = default;
-            touchActive[i] = false;
-        }
-
-        if (GameDuoLan.Mode == GameDuoLan.LanMode.Host) {
-            current[1] = GameDuoLan.Remote;
-            Edges(1);
-        }
-
-        // Multi-touch en pantalla táctil
-        if (Touchscreen.current != null) {
-            int count = Touchscreen.current.touches.Count;
-            for (int t = 0; t < count; t++) {
-                var touch = Touchscreen.current.touches[t];
-                if (!touch.press.isPressed) continue;
-                Apply(ScreenToVirtual(touch.position.ReadValue()));
-            }
-        }
-
-        // Puntero / ratón para pruebas en Editor o PC
-        var mouse = Mouse.current;
-        if (mouse != null && mouse.leftButton.isPressed) {
-            Apply(ScreenToVirtual(mouse.position.ReadValue()));
-        }
-
-        // Suavizado del knob cuando se suelta el toque
-        for (int i = 0; i < 2; i++) {
-            if (!touchActive[i]) {
-                visualKnob[i] = Vector2.MoveTowards(visualKnob[i], Vector2.zero, Time.unscaledDeltaTime * 350f);
-            }
-        }
-
-        Edges(0);
-        if (GameDuoLan.Mode != GameDuoLan.LanMode.Host) {
-            Edges(1);
-        }
-
-        if (GameDuoLan.Mode == GameDuoLan.LanMode.Guest) {
-            GameDuoLan.Send(current[1]);
+            sticks[i].seen = supers[i].seen = false;
         }
     }
 
-    void Apply(Vector2 p) {
-        GetLayout(out Vector2 s0, out Vector2 sup0, out Vector2 s1, out Vector2 sup1);
-
-        int player = (GameDuoLan.Mode == GameDuoLan.LanMode.Guest) ? 1 : (p.x < VirtualWidth * 0.5f ? 0 : 1);
-        if (GameDuoLan.Mode == GameDuoLan.LanMode.Host && player == 1) return;
-
-        Vector2 stick = player == 0 ? s0 : s1;
-        Vector2 sup = player == 0 ? sup0 : sup1;
-
-        // 1. Detección del botón de Superpoder (con icono)
-        if (Vector2.Distance(p, sup) <= SuperRadius + 14f ||
-            Vector2.Distance(p, new Vector2(player == 0 ? 326f : 634f, 300f)) <= 46f) {
-            current[player].ultimate = true;
-            return;
+    void EndInputFrame() {
+        for (int i = 0; i < 2; i++) {
+            if (!sticks[i].seen) {
+                sticks[i] = default;
+                visualKnob[i] = Vector2.MoveTowards(visualKnob[i], Vector2.zero, Time.unscaledDeltaTime * 350f);
+            }
+            if (!supers[i].seen) supers[i] = default;
+            Edges(i);
         }
+    }
 
-        // 2. Detección del Joystick 2D multifunción (movimiento, salto arriba, bajar abajo)
-        Vector2 delta = p - stick;
-        if (delta.sqrMagnitude <= (BaseRadius + 45f) * (BaseRadius + 45f)) {
-            touchActive[player] = true;
+    void ReleasePointer(int pointer) {
+        for (int i = 0; i < 2; i++) {
+            if (sticks[i].pointer == pointer) sticks[i] = default;
+            if (supers[i].pointer == pointer) supers[i] = default;
+        }
+    }
+
+    void TrackPointer(int pointer, bool pressed, Vector2 position, GameDuoLan.LanMode mode,
+        Vector2 stick0, Vector2 super0, Vector2 stick1, Vector2 super1) {
+        if (pressed) ReleasePointer(pointer);
+        if (mode != GameDuoLan.LanMode.Guest)
+            TrackPlayer(pointer, pressed, position, 0, stick0, super0);
+        if (mode != GameDuoLan.LanMode.Host)
+            TrackPlayer(pointer, pressed, position, 1, stick1, super1);
+    }
+
+    void TrackPlayer(int pointer, bool pressed, Vector2 position, int player, Vector2 stick, Vector2 super) {
+        Vector2 delta = position - stick;
+        if (sticks[player].pointer == pointer ||
+            (pressed && !sticks[player].pointer.HasValue && delta.sqrMagnitude <= BaseRadius * BaseRadius)) {
+            sticks[player] = new Capture { pointer = pointer, seen = true };
             Vector2 knob = Vector2.ClampMagnitude(delta, StickTravel);
             visualKnob[player] = knob;
-
-            // Eje horizontal (movimiento lateral)
             float normX = knob.x / (StickTravel * 0.72f);
             current[player].axis = Mathf.Abs(normX) > 0.12f ? Mathf.Clamp(normX, -1f, 1f) : 0f;
-
-            // Eje vertical: Arriba para Salto, Abajo para Bajar/Caer de plataformas
-            if (knob.y < -StickTravel * 0.36f) current[player].jump = true;
-            if (knob.y > StickTravel * 0.36f) current[player].down = true;
-            return;
-        }
-
-        // Compatibilidad con pruebas automáticas
-        if (player == 0 && Vector2.Distance(p, new Vector2(326f, 425f)) <= 55f) {
-            current[0].jump = true;
-            return;
+            current[player].jump = knob.y < -StickTravel * 0.36f;
+            current[player].down = knob.y > StickTravel * 0.36f;
+        } else if (!GameDuoDanceActive && (supers[player].pointer == pointer ||
+            (pressed && !supers[player].pointer.HasValue && (position - super).sqrMagnitude <= SuperRadius * SuperRadius))) {
+            supers[player] = new Capture { pointer = pointer, seen = true };
+            current[player].ultimate = true;
         }
     }
 
@@ -195,6 +219,8 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         s.dashPressed = s.dash && !p.dash;
         current[i] = s;
     }
+
+    static bool GameDuoDanceActive => GameDuoCampaign.Active && CoopInteractionDirector.Active && CoopInteractionDirector.Active.Dancing;
 
     void OnGUI() {
         if (!Playable && GameDuoLan.Mode != GameDuoLan.LanMode.Guest) return;
@@ -210,18 +236,26 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         int from = GameDuoLan.Mode == GameDuoLan.LanMode.Guest ? 1 : 0;
         int to = (GameDuoLan.Mode == GameDuoLan.LanMode.Local || GameDuoLan.Mode == GameDuoLan.LanMode.Guest) ? 2 : 1;
 
+        var game = GameManager.Instance;
+        var powers = game ? game.GetComponent<LinkPowers>() : null;
         for (int i = from; i < to; i++) {
             Vector2 stick = i == 0 ? s0 : s1;
             Vector2 sup = i == 0 ? sup0 : sup1;
             Color playerColor = i == 0 ? new Color(1f, 0.45f, 0.65f, 0.9f) : new Color(0.45f, 1f, 0.75f, 0.9f);
 
             DrawJoystick(stick, i, playerColor);
-            DrawSuperButton(sup, current[i].ultimate, playerColor);
+            if (!GameDuoDanceActive) {
+                bool charged = powers && powers.Charge >= LinkPowers.ChargeRequired;
+                bool confirmed = charged && powers.IsConfirmed(i);
+                DrawSuperButton(sup, current[i].ultimate || confirmed, playerColor);
+                if (charged) CoopPromptUI.Ring(sup, SuperRadius + 4f, 1, confirmed ? CoopPromptUI.Mint : playerColor, 3);
+            }
         }
 
         if (GameDuoLan.Mode == GameDuoLan.LanMode.Host) {
             CoopPromptUI.Text(new Rect(15, 15, 370, 28), GameDuoLan.Status, 13, CoopPromptUI.Mint);
-        } else if (GameDuoLan.Mode == GameDuoLan.LanMode.Guest) {
+        } else if (GameDuoLan.Mode == GameDuoLan.LanMode.Guest &&
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().path != GameDuoMainMenu.ScenePath) {
             CoopPromptUI.Text(new Rect(VirtualWidth * 0.5f - 170f, 16, 340, 30), GameDuoLan.Status, 16, CoopPromptUI.Mint);
         }
 
@@ -353,7 +387,7 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         return chevron;
     }
 
-    static Texture2D PowerIcon() {
+    internal static Texture2D PowerIcon() {
         if (powerIcon) return powerIcon;
         int size = 64;
         powerIcon = new Texture2D(size, size, TextureFormat.RGBA32, false) {

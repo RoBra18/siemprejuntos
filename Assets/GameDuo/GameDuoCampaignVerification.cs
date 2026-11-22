@@ -77,6 +77,13 @@ public sealed class GameDuoCampaignVerification : MonoBehaviour {
  IEnumerator Wait(Func<bool> ready,float seconds,string label){float end=Time.realtimeSinceStartup+seconds;while(!ready()&&Time.realtimeSinceStartup<end)yield return null;Check(ready(),label);if(!ready())throw new Exception("Timed out: "+label);}
  IEnumerator Settle(float seconds){float end=Time.realtimeSinceStartup+seconds;while(Time.realtimeSinceStartup<end)yield return null;}
  IEnumerator Guide(){float end=Time.realtimeSinceStartup+12;int frame=0;while(FindAnyObjectByType<GameDuoTutorial>()&&Time.realtimeSinceStartup<end){desired=frame++%3==0?new KeyboardState(Key.F,Key.Enter):new KeyboardState();yield return null;}desired=new KeyboardState();Check(!FindAnyObjectByType<GameDuoTutorial>(),"Both-player tutorial confirmations finish");}
+ IEnumerator ContinueFromResults(int stage){
+  yield return Wait(()=>GameDuoCampaign.Active&&GameDuoCampaign.Instance.ResultsReady,8,"Mission "+(stage+1)+" opens results");
+  yield return Settle(.4f);
+  Check(SceneManager.GetActiveScene().path==GameDuoCampaign.Scenes[stage]&&!GameDuoCinema.Busy,"Mission waits for Continuar");
+  Check(PlayerPrefs.GetInt("GameDuo.Unlocked")>=Mathf.Min(stage+1,GameDuoCampaign.Scenes.Length-1),"Progress saved on victory");
+  GameDuoCampaign.Instance.ContinueMission();
+ }
  IEnumerator Run(){
   var menu=FindAnyObjectByType<GameDuoMainMenu>();
   Check(menu,"Build opens the main menu");
@@ -97,15 +104,20 @@ public sealed class GameDuoCampaignVerification : MonoBehaviour {
   yield return Guide();
   yield return Movement();
   yield return Combat(0);
+  yield return ContinueFromResults(0);
   yield return Wait(()=>SceneManager.GetActiveScene().path==GameDuoCampaign.Scenes[1]&&!GameDuoCinema.Busy,65,"Tutorial -> movies 2,3 -> Neon");
   yield return Neon();
+  yield return ContinueFromResults(1);
   yield return Wait(()=>SceneManager.GetActiveScene().path==GameDuoCampaign.Scenes[2]&&!GameDuoCinema.Busy,45,"Portal -> movie 4 -> Ice King");
   yield return Combat(2);
+  yield return ContinueFromResults(2);
   yield return Wait(()=>SceneManager.GetActiveScene().path==GameDuoCampaign.Scenes[3]&&!GameDuoCinema.Busy,45,"Ice King -> movie 5 -> Penguins");
   yield return Penguins();
+  yield return ContinueFromResults(3);
   yield return Wait(()=>SceneManager.GetActiveScene().path==GameDuoCampaign.Scenes[4]&&!GameDuoCinema.Busy,65,"Penguins -> movies 6,7 -> Candy King");
   yield return Combat(4);
-  yield return Wait(()=>GameDuoCampaign.Instance.Completed&&!GameDuoCinema.Busy,65,"Candy King -> movie 8 -> the final -> completed");
+  yield return ContinueFromResults(4);
+  yield return Wait(()=>SceneManager.GetActiveScene().path==GameDuoMainMenu.ScenePath&&!GameDuoCinema.Busy,65,"Candy King -> movies 8 and 9 -> main menu");
   Check(string.Join(",",movies)=="1,2,3,4,5,6,7,8,the final","Exact complete movie order: "+string.Join(",",movies));
   Check(Time.timeScale==1&&!AudioListener.pause,"Final transition restores simulation and audio");
   // Re-enter chapters to exercise cached runtime sprites after scene destruction.

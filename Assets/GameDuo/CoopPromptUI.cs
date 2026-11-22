@@ -7,7 +7,39 @@ public static class CoopPromptUI {
   public bool Confirmed(int player)=>player>=0&&player<2&&ready[player];
   public void Reset(){ready[0]=ready[1]=false;}
   public bool Poll(){if(GameDuoCinema.Busy)return false;var k=UnityEngine.InputSystem.Keyboard.current;if(k!=null){if(k.fKey.wasPressedThisFrame)ready[0]=true;if(k.enterKey.wasPressedThisFrame||k.numpadEnterKey.wasPressedThisFrame)ready[1]=true;}return ready[0]&&ready[1];}
-  public void Draw(float y=175,bool showHeroes=true){for(int i=0;i<2;i++){float x=100+i*230;var c=CoopPresentation.PlayerColor(i);if(showHeroes)Hero(new Rect(x+70,y-62,40,55),i);Panel(new Rect(x,y,210,46),ready[i]?Mint:c);if(GUI.Button(new Rect(x+3,y+3,204,40),(i==0?"MIMO / F":"PIPRO / ENTER")+" / EMPEZAR"))ready[i]=true;}}
+  public void Draw(float y=175,bool showHeroes=true){if(TouchControls&&GameDuoCampaign.InCampaignScene){if(showHeroes){Hero(new Rect(225,y-62,40,55),0);Hero(new Rect(375,y-50,32,43),1);}if(Button(new Rect(190,y,260,46),"Empezar",Mint))ready[0]=ready[1]=true;return;}for(int i=0;i<2;i++){float x=100+i*230;var c=CoopPresentation.PlayerColor(i);if(showHeroes)Hero(new Rect(x+70,y-62,40,55),i);Panel(new Rect(x,y,210,46),ready[i]?Mint:c);if(GUI.Button(new Rect(x+3,y+3,204,40),(i==0?"MIMO / F":"PIPRO / ENTER")+" / EMPEZAR"))ready[i]=true;}}
+ }
+ public static bool TouchControls=>GameDuoMobileInput.TouchControls;
+ public static bool Button(Rect rect,string label,Color accent){
+  Panel(rect,accent);
+  bool clicked=GUI.Button(rect,GUIContent.none,GUIStyle.none);
+  Text(rect,label,15,accent);
+  return clicked;
+ }
+ public static Matrix4x4 FitSafeArea(){
+  Rect safe=Screen.safeArea;
+  if(safe.width<=0||safe.height<=0)safe=new Rect(0,0,Screen.width,Screen.height);
+  float scale=Mathf.Min(safe.width/640f,safe.height/360f);
+  return Matrix4x4.TRS(new Vector3(safe.center.x-320*scale,Screen.height-safe.center.y-180*scale),
+   Quaternion.identity,new Vector3(scale,scale,1));
+ }
+ public static void Arrow(Vector2 center,int direction,float size,Color color){
+  Vector2 d=direction==0?Vector2.down:direction==1?Vector2.left:direction==2?Vector2.up:Vector2.right;
+  Vector2 tip=center+d*size, side=Vector2.Perpendicular(d)*size*.65f;
+  float width=Mathf.Max(2,size*.2f);
+  Line(center-d*size,tip,width,color);Line(tip,center+side,width,color);Line(tip,center-side,width,color);
+ }
+ public static void Bolt(Vector2 center,float radius,Color color){
+  Ring(center,radius,1,color,2);
+  var old=GUI.color;GUI.color=color;
+  GUI.DrawTexture(new Rect(center.x-radius*.72f,center.y-radius*.72f,radius*1.44f,radius*1.44f),GameDuoMobileInput.PowerIcon());
+  GUI.color=old;
+ }
+ public static void Stick(Vector2 center,float radius,int direction,Color color,bool active=true){
+  Ring(center,radius,1,color,2);
+  Color highlight=active?color:Color.Lerp(color,Color.gray,.7f);
+  if(direction>=0)Arrow(center,direction,radius*.57f,highlight);
+  else Ring(center,radius*.27f,1,highlight,3);
  }
  public static readonly Color Ink=new Color(.055f,.045f,.12f,.97f), Mint=new Color(.45f,1,.77f), Amber=new Color(1,.77f,.28f);
  public static void Fill(Rect rect,Color color){var old=GUI.color;GUI.color=color;GUI.DrawTexture(rect,Texture2D.whiteTexture);GUI.color=old;}
@@ -21,10 +53,7 @@ public static class CoopPromptUI {
   Fill(new Rect(r.x+3,r.y+3,r.width-6,r.height-7),active?Color.Lerp(color,Ink,.55f):Ink);
   if(direction<0)Text(r,label,Mathf.Clamp((int)(r.height*.32f),10,24),active?Color.white:color);
   else {
-   Vector2 d=direction==0?Vector2.up:direction==1?Vector2.left:direction==2?Vector2.down:Vector2.right;
-   // GUI y increases downward.
-   d.y=-d.y;Vector2 center=r.center;float len=r.height*.22f;Vector2 tip=center+d*len,side=Vector2.Perpendicular(d)*len*.65f;
-   Line(center-d*len,tip,3,color);Line(tip,center+side,3,color);Line(tip,center-side,3,color);
+   Arrow(r.center,direction,r.height*.22f,color);
   }
  }
  public static void Pad(Vector2 center,int player,int selected,bool active,float size=27){
@@ -51,22 +80,25 @@ public static class CoopPromptUI {
  public static void Dance(int player,int key,int beat,int hits,float phase,bool answered,bool correct){
   bool window=phase>=CoopInteractionDirector.HitStart/CoopInteractionDirector.BeatDuration&&phase<=CoopInteractionDirector.HitEnd/CoopInteractionDirector.BeatDuration;
   Color c=answered?(correct?Mint:new Color(1,.4f,.45f)):CoopPresentation.PlayerColor(player);
+  bool touch=GameDuoCampaign.InCampaignScene&&TouchControls;
   Panel(new Rect(135,75,370,220),c);
-  Text(new Rect(150,83,340,24),"DANZA DEL ENLACE",17);
+  Text(new Rect(150,83,340,24),"Danza del Enlace",17);
   for(int i=0;i<2;i++){
    float x=i==0?181:459;bool turn=i==player;
    Hero(new Rect(x-22,i==0?115:133,i==0?44:29,i==0?60:42),i);
-   Text(new Rect(x-44,177,88,20),i==0?"MIMO":"PIPRO",12,turn?c:Color.gray);
-   Pad(new Vector2(x,231),i,key,turn&&!answered,19);
+   Text(new Rect(x-44,177,88,20),i==0?"Mimo":"Pipro",12,turn?c:Color.gray);
+   if(turn)Fill(new Rect(x-15,198,30,2),c);
+   if(touch)Stick(new Vector2(x,230),24,turn?key:-1,CoopPresentation.PlayerColor(i),turn&&window&&!answered);
+   else Pad(new Vector2(x,231),i,key,turn&&!answered,19);
   }
   Ring(new Vector2(320,180),50,1,new Color(.2f,.2f,.3f),5);
   Ring(new Vector2(320,180),50,phase,c,5);
   float approach=Mathf.Lerp(78,48,Mathf.Clamp01(phase/.22f));if(!answered&&phase<.22f)Ring(new Vector2(320,180),approach,1,c,2);
-  Key(new Rect(294,154,52,52),new[]{"W","A","S","D"}[key],c,!answered&&window,player==1?key:-1);
-  Text(new Rect(235,214,170,26),answered?(correct?"BIEN!":"OTRO INTENTO"):phase<CoopInteractionDirector.HitStart/CoopInteractionDirector.BeatDuration?"PREPARATE":window?"PULSA AHORA":"SIGUIENTE PULSO",14,c);
-  Text(new Rect(235,240,170,20),"TURNO DE "+(player==0?"MIMO":"PIPRO"),11,c);
+  if(touch)Stick(new Vector2(320,180),29,key,c,!answered&&window);
+  else Key(new Rect(294,154,52,52),new[]{"W","A","S","D"}[key],c,!answered&&window,player==1?key:-1);
+  Text(new Rect(235,217,170,26),answered?(correct?"¡Bien!":"Fuera de ritmo"):phase<CoopInteractionDirector.HitStart/CoopInteractionDirector.BeatDuration?"Prepárate":window?"¡Ahora!":"",14,c);
   for(int i=0;i<12;i++)Fill(new Rect(230+i*15,272,11,6),i<beat?Mint:i==beat?c:new Color(.22f,.2f,.3f));
-  Text(new Rect(235,283,170,14),hits+" ACIERTOS / "+(beat+1)+" DE 12",10);
+  Text(new Rect(235,283,170,14),hits+(hits==1?" acierto":" aciertos"),10);
  }
  public static void Lesson(string id,string title){
   Panel(new Rect(60,50,520,260),Mint);Text(new Rect(75,60,490,32),title,17,Mint);

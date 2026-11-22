@@ -13,7 +13,7 @@ public sealed class GameDuoCinema : MonoBehaviour {
  bool firstFrame; bool busy, failed, ended, showingMovie; float opacity; string error;
  VideoPlayer player; AudioSource audioOutput; RenderTexture target;
  const float FadeDuration=0.35f, BlackHoldDuration=0.08f;
- bool holdBlackBackground;
+ bool holdBlackBackground, canSkip, skipMovies;
 
  [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
  static void ResetSession(){instance=null;IntroPlayed=false;}
@@ -39,7 +39,8 @@ public sealed class GameDuoCinema : MonoBehaviour {
  }
 
  IEnumerator Sequence(int[] movies,string scene,Action complete) {
-  busy=true; float scale=Time.timeScale; bool paused=AudioListener.pause;
+  busy=true; skipMovies=false;canSkip=movies.Length>0;
+  float scale=Time.timeScale; bool paused=AudioListener.pause;
   Time.timeScale=0; AudioListener.pause=true;
 
   yield return Fade(1, FadeDuration);
@@ -57,13 +58,14 @@ public sealed class GameDuoCinema : MonoBehaviour {
     yield return new WaitForSecondsRealtime(0.04f);
    }
 
+   if(skipMovies)break;
    failed=false;ended=false;error=null;
    if(index<0||index>=9
 #if !UNITY_WEBGL || UNITY_EDITOR
     ||!library||library.clips==null||index>=library.clips.Length||!library.clips[index]
 #endif
    ){
-    failed=true;error="No se encontro el video "+(index+1);
+    failed=true;error="No se encontró el video "+(index+1);
    } else {
     if(!player){
      player=gameObject.AddComponent<VideoPlayer>();player.playOnAwake=false;player.isLooping=false;
@@ -96,27 +98,28 @@ public sealed class GameDuoCinema : MonoBehaviour {
     else Debug.LogWarning("GameDuo: el video no contiene pista de audio: "+player.clip.name);
 #endif
     player.Prepare();float deadline=Time.realtimeSinceStartup+30;
-    while(!player.isPrepared&&!failed&&Time.realtimeSinceStartup<deadline)yield return null;
-    if(!player.isPrepared){failed=true;error="No se pudo preparar el video. Revisa su importacion en Unity.";}
+    while(!skipMovies&&!player.isPrepared&&!failed&&Time.realtimeSinceStartup<deadline)yield return null;
+    if(!skipMovies&&!player.isPrepared){failed=true;error="No se pudo preparar el video.";}
    }
 
-   if(!failed){
+   if(!failed&&!skipMovies){
     firstFrame=false;audioOutput.volume=1;player.Play();float frameDeadline=Time.realtimeSinceStartup+15;
-    while(!firstFrame&&!failed&&!ended&&Time.realtimeSinceStartup<frameDeadline)yield return null;
-    if(!firstFrame){failed=true;error="El video no entrego su primer fotograma.";}
-    else{
+    while(!skipMovies&&!firstFrame&&!failed&&!ended&&Time.realtimeSinceStartup<frameDeadline)yield return null;
+    if(!skipMovies&&!firstFrame){failed=true;error="El video no pudo iniciar.";}
+    if(!skipMovies&&firstFrame&&!failed){
      showingMovie=true;
      yield return Fade(0, 0.28f);
      float fadeOutTime=0.32f;
-     while(!ended&&!failed&&(player.length<=1f||player.time<player.length-fadeOutTime))yield return null;
-     yield return Fade(1, fadeOutTime, true);
-     while(!ended&&!failed&&player.isPlaying)yield return null;
+     while(!skipMovies&&!ended&&!failed&&(player.length<=1f||player.time<player.length-fadeOutTime))yield return null;
+     if(!skipMovies)yield return Fade(1, fadeOutTime, true);
+     while(!skipMovies&&!ended&&!failed&&player.isPlaying)yield return null;
     }
    }
    opacity=1;
-   if(failed){Debug.LogError(error);while(failed)yield return null;}
+   if(failed&&!skipMovies){Debug.LogError(error);while(failed&&!skipMovies)yield return null;}
    if(player)player.Stop();showingMovie=false;
   }
+  canSkip=false;failed=false;
 
   yield return new WaitForSecondsRealtime(BlackHoldDuration);
 
@@ -154,7 +157,15 @@ public sealed class GameDuoCinema : MonoBehaviour {
    GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.blackTexture);
   }
   GUI.color=Color.white;
-  if(failed){GUI.Label(new Rect(30,Screen.height/2-40,Screen.width-60,50),"No se pudo reproducir la cinematica. "+error);if(GUI.Button(new Rect(Screen.width/2-100,Screen.height/2+20,200,40),"Continuar"))failed=false;}
+  if(canSkip&&!skipMovies){
+   Rect safe=Screen.safeArea;
+   if(safe.width<=0||safe.height<=0)safe=new Rect(0,0,Screen.width,Screen.height);
+   float scale=GameDuoMobileInput.Scale;
+   GUI.matrix=Matrix4x4.TRS(new Vector3(safe.xMax,Screen.height-safe.yMax),Quaternion.identity,new Vector3(scale,scale,1));
+   if(CoopPromptUI.Button(new Rect(-158,16,142,56),"Omitir",CoopPromptUI.Mint))skipMovies=true;
+   GUI.matrix=Matrix4x4.identity;
+  }
+  if(failed&&!skipMovies){CoopPromptUI.Text(new Rect(30,Screen.height/2-40,Screen.width-60,50),"No se pudo reproducir la cinemática.",16);if(GUI.Button(new Rect(Screen.width/2-100,Screen.height/2+20,200,40),"Continuar"))failed=false;}
   GUI.Box(new Rect(0,0,Screen.width,Screen.height),GUIContent.none,GUIStyle.none);
   GUI.matrix=oldMatrix;GUI.color=oldColor;GUI.depth=oldDepth;
  }

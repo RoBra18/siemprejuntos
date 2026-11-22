@@ -43,8 +43,7 @@ public sealed class GameDuoFinalPlayQA : MonoBehaviour {
   GameDuoBat.Spawn(motion,-8,2,1,6,enemy.sprite.sharedMaterial);yield return new WaitForSeconds(.4f);Check(hero.Hearts==before,"Changing height avoids flock lane");
   while(!boss.Vulnerable)yield return null;enemy.Damage(10000);yield return null;yield return null;
   Check(enemy.Dead&&FindObjectsByType<GameDuoBat>().Length==0,"Boss defeat removes remaining bats");
-  typeof(GameDuoCampaign).GetMethod("Advance",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(GameDuoCampaign.Instance,null);
-  Check(GameDuoCampaign.Instance.Completed,"Chapter five ends campaign");
+  Check(!GameDuoCampaign.Instance.ResultsReady,"Practice boss defeat does not complete the campaign mission");
   report.Insert(0,failures==0?"PASS / GameDuo final encounter":"FAIL / "+failures);
   File.WriteAllLines("Assets/GameDuo/FinalPlayModeQA.txt",report);Debug.Log(report[0]);
   if(Application.isBatchMode)EditorApplication.Exit(failures==0?0:1);else EditorApplication.ExitPlaymode();

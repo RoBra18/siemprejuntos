@@ -1,69 +1,283 @@
+using System;
 using UnityEngine;
+
 namespace CoopBeam {
 public sealed class GameDuoMainMenu : MonoBehaviour {
- public const string ScenePath="Assets/GameDuo/Scenes/00_Menu.unity";
- Texture2D background; GameDuoTutorial controls; AudioSource music; bool multiplayer,privacy; string joinIp="192.168.1.";
- void Awake(){
-  Time.timeScale=1;AudioListener.pause=false;
-  background=Resources.Load<Texture2D>("MainMenu");
-  controls=gameObject.AddComponent<GameDuoTutorial>();
-  GameDuoLan.Ensure();
-  var cameraObject=new GameObject("Menu camera");
-  cameraObject.AddComponent<AudioListener>();
-  var camera=cameraObject.AddComponent<Camera>();camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.black;
-  music=gameObject.AddComponent<AudioSource>();music.playOnAwake=false;music.loop=true;
-  music.spatialBlend=0;music.ignoreListenerPause=true;music.volume=0;
-  music.clip=Resources.Load<AudioClip>("MenuTheme");if(music.clip)music.Play();
- }
- void Update(){
-  if(music)music.volume=Mathf.MoveTowards(music.volume,GameDuoCinema.Busy?0:.38f,Time.unscaledDeltaTime*.95f);
- }
- public void StartGame(){if(!GameDuoCinema.Busy)GameDuoCinema.Play(new[]{0},GameDuoCampaign.Scenes[0]);}
- void OnGUI(){
-  GUI.depth=100;
-  GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.blackTexture);
-  float scale=Mathf.Min(Screen.width/1672f,Screen.height/941f);
-  var matrix=GUI.matrix;
-  GUI.matrix=Matrix4x4.TRS(new Vector3((Screen.width-1672*scale)/2,(Screen.height-941*scale)/2,0),Quaternion.identity,new Vector3(scale,scale,1));
-  if(background)GUI.DrawTexture(new Rect(0,0,1672,941),background);
-  if(!controls.Reviewing&&!GameDuoCinema.Busy&&!multiplayer&&!privacy){
-   if(GUI.Button(new Rect(338,791,265,77),GUIContent.none,GUIStyle.none))controls.OpenControls();
-   if(GUI.Button(new Rect(660,781,365,92),GUIContent.none,GUIStyle.none))StartGame();
-   if(GUI.Button(new Rect(1082,791,263,77),GUIContent.none,GUIStyle.none))Quit();
-   if(GUI.Button(new Rect(662,690,362,72),"MULTIJUGADOR LOCAL"))multiplayer=true;
-  }
-  if(!privacy&&!controls.Reviewing&&!GameDuoCinema.Busy&&GUI.Button(new Rect(35,875,240,42),"PRIVACIDAD"))privacy=true;
-  GUI.matrix=matrix;
-  if(privacy)DrawPrivacy();
-  else if(multiplayer&&!controls.Reviewing&&!GameDuoCinema.Busy)DrawMultiplayer();
- }
- void DrawPrivacy(){
-  var old=GUI.matrix;GUI.matrix=Matrix4x4.Scale(new Vector3(Screen.width/960f,Screen.height/540f,1));GUI.depth=40;
-  CoopPromptUI.Panel(new Rect(135,55,690,430),CoopPromptUI.Mint);
-  CoopPromptUI.Text(new Rect(175,75,610,42),"PRIVACIDAD DE DIMDAM",27,CoopPromptUI.Mint);
-  CoopPromptUI.Text(new Rect(175,125,610,235),"El juego guarda el progreso de la campaña en este dispositivo. No pide cuenta, no muestra anuncios y no incluye compras ni análisis de uso.\n\nEn multijugador local, el segundo móvil envía controles al anfitrión por la misma red Wi-Fi. Se muestra la IP local para conectar los dispositivos. No usamos servidores externos y no enviamos esa IP ni los controles a los desarrolladores.",17);
-  if(GUI.Button(new Rect(350,400,260,48),"CERRAR"))privacy=false;
-  GUI.matrix=old;
- }
- void DrawMultiplayer(){
-  var old=GUI.matrix;GUI.matrix=Matrix4x4.Scale(new Vector3(Screen.width/960f,Screen.height/540f,1));GUI.depth=50;
-  CoopPromptUI.Panel(new Rect(215,45,530,440),CoopPromptUI.Mint);
-  CoopPromptUI.Text(new Rect(240,60,480,42),"MULTIJUGADOR LOCAL",25,CoopPromptUI.Mint);
-  CoopPromptUI.Text(new Rect(245,105,470,52),"Ambos móviles en la misma red Wi-Fi. La partida se ve en la pantalla del anfitrión; el otro móvil funciona como mando.",14);
-  if(GUI.Button(new Rect(280,160,400,45),"CREAR PARTIDA / ANFITRIÓN"))GameDuoLan.StartHost();
-  CoopPromptUI.Text(new Rect(260,210,440,42),GameDuoLan.Status,14);
-  joinIp=GUI.TextField(new Rect(320,265,320,35),joinIp,32);
-  if(GUI.Button(new Rect(280,310,400,45),"UNIRME CON ESA IP"))GameDuoLan.Join(joinIp);
-  if(GameDuoLan.Mode==GameDuoLan.LanMode.Host&&GUI.Button(new Rect(280,370,400,45),"JUGAR COMO ANFITRIÓN"))StartGame();
-  if(GUI.Button(new Rect(280,430,400,35),"VOLVER / JUGAR EN UNA PANTALLA")){GameDuoLan.Local();multiplayer=false;}
-  GUI.matrix=old;
- }
- static void Quit(){
+    public const string ScenePath = "Assets/GameDuo/Scenes/00_Menu.unity";
+    const int DisplayEnergy = 5;
+
+    enum Page { Home, Missions, Wifi, Privacy }
+
+    static readonly Color Background = new Color(.07f, .06f, .13f);
+    static readonly Color Surface = new Color(.13f, .11f, .21f);
+    static readonly Color HomeSurface = new Color(.12f, .09f, .23f, .88f);
+    static readonly Color HomeBorder = new Color(.66f, .56f, .94f, .82f);
+    static readonly Color Border = new Color(.24f, .21f, .35f);
+    static readonly Color Ink = new Color(.96f, .93f, 1f);
+    static readonly Color Muted = new Color(.73f, .69f, .81f);
+    static readonly Color Lavender = new Color(.78f, .68f, 1f);
+    static readonly Color Accent = new Color(.61f, .96f, .79f);
+    static readonly Color Gold = new Color(1f, .79f, .45f);
+
+    GameDuoTutorial controls;
+    AudioSource music;
+    Page page;
+    string joinIp = "";
+    GUIStyle label;
+    Texture2D homeBackdrop, homeLogo;
+
+    bool IllustratedHome => page == Page.Home && homeBackdrop;
+
+    void Awake() {
+        Time.timeScale = 1;
+        AudioListener.pause = false;
+        controls = gameObject.AddComponent<GameDuoTutorial>();
+        homeBackdrop = Resources.Load<Texture2D>("SiempreJuntosMenu");
+        homeLogo = Resources.Load<Texture2D>("SiempreJuntosLogo");
+        GameDuoLan.Ensure();
+
+        var cameraObject = new GameObject("Menu camera");
+        cameraObject.AddComponent<AudioListener>();
+        var camera = cameraObject.AddComponent<Camera>();
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = Background;
+
+        music = gameObject.AddComponent<AudioSource>();
+        music.playOnAwake = false;
+        music.loop = true;
+        music.spatialBlend = 0;
+        music.ignoreListenerPause = true;
+        music.volume = 0;
+        music.clip = Resources.Load<AudioClip>("MenuTheme");
+        if (music.clip) music.Play();
+    }
+
+    void Update() {
+        if (music) music.volume = Mathf.MoveTowards(music.volume, GameDuoCinema.Busy ? 0 : .38f, Time.unscaledDeltaTime * .95f);
+    }
+
+    public void StartGame() {
+        if (!GameDuoCinema.Busy && GameDuoLan.Mode != GameDuoLan.LanMode.Guest) OpenMission(0);
+    }
+
+    internal bool TryStartMission(int stage) {
+        if (GameDuoCinema.Busy || GameDuoLan.Mode != GameDuoLan.LanMode.Local ||
+            stage < 0 || stage > GameDuoCampaign.UnlockedStage) return false;
+        OpenMission(stage);
+        return true;
+    }
+
+    static void OpenMission(int stage) {
+        GameDuoCinema.Play(stage == 0 ? new[] { 0 } : Array.Empty<int>(), GameDuoCampaign.Scenes[stage]);
+    }
+
+    void OnGUI() {
+        var oldMatrix = GUI.matrix;
+        int oldDepth = GUI.depth;
+        GUI.depth = 100;
+        GUI.matrix = Matrix4x4.identity;
+        var viewport = new Rect(0, 0, Screen.width, Screen.height);
+        if (IllustratedHome && !GameDuoCinema.Busy)
+            GUI.DrawTexture(viewport, homeBackdrop, ScaleMode.ScaleAndCrop);
+        else
+            CoopPromptUI.Fill(viewport, Background);
+        GUI.matrix = CoopPromptUI.FitSafeArea();
+
+        if (!GameDuoCinema.Busy) {
+            Header();
+            if (!controls.Reviewing) {
+                switch (page) {
+                    case Page.Home: DrawHome(); break;
+                    case Page.Missions: DrawMissions(); break;
+                    case Page.Wifi: DrawWifi(); break;
+                    case Page.Privacy: DrawPrivacy(); break;
+                }
+            }
+        }
+
+        GUI.matrix = oldMatrix;
+        GUI.depth = oldDepth;
+    }
+
+    void Header() {
+        if (IllustratedHome && homeLogo) {
+            GUI.DrawTexture(new Rect(24, 5, 280, 79), homeLogo, ScaleMode.ScaleToFit);
+        } else {
+            Text(new Rect(24, 14, 205, 39), "DimDam", 29, Ink, true);
+            Text(new Rect(24, 48, 205, 21), "Siempre Juntos", 12, Lavender);
+            CoopPromptUI.Fill(new Rect(24, 76, 592, 1), Border);
+        }
+
+        var energy = new Rect(477, 23, 139, 33);
+        Card(energy, IllustratedHome ? HomeBorder : Border, IllustratedHome ? HomeSurface : Surface);
+        CoopPromptUI.Bolt(new Vector2(494, 39.5f), 10, Gold);
+        Text(new Rect(513, 23, 61, 33), "Energía", 11, Muted);
+        Text(new Rect(574, 23, 34, 33), $"{DisplayEnergy}/{DisplayEnergy}", 13, Gold, true);
+    }
+
+    void DrawHome() {
+        DrawHeroArt();
+        if (IllustratedHome) Text(new Rect(324, 87, 293, 31), "Campaña", 21, Background, true);
+        Text(new Rect(323, 86, 293, 31), "Campaña", 21, Ink, true);
+        if (ModeCard(new Rect(323, 123, 293, 67), "Una pantalla", "Dos jugadores en este dispositivo", Accent, false))
+            page = Page.Missions;
+        if (ModeCard(new Rect(323, 201, 293, 67), "Dos dispositivos", "Jueguen en la misma red Wi‑Fi", Lavender, true))
+            page = Page.Wifi;
+
+        CoopPromptUI.Fill(new Rect(24, 310, 592, 1), Border);
+        if (Action(new Rect(24, 320, 100, 27), "Controles", Border, Ink)) controls.OpenControls();
+        if (Action(new Rect(134, 320, 100, 27), "Privacidad", Border, Ink)) page = Page.Privacy;
+        if (Action(new Rect(516, 320, 100, 27), "Salir", Border, Muted)) Quit();
+    }
+
+    void DrawHeroArt() {
+        Card(new Rect(24, 91, 275, 204), IllustratedHome ? HomeBorder : Border, IllustratedHome ? HomeSurface : Surface);
+        Vector2 center = new Vector2(162, 192);
+        CoopPromptUI.Ring(center, 81, 1, new Color(.23f, .19f, .34f), 2);
+        CoopPromptUI.Ring(center, 67, 1, new Color(.18f, .16f, .28f), 1);
+        CoopPromptUI.Line(new Vector2(78, 210), new Vector2(260, 176), 2, Accent);
+        CoopPromptUI.Line(new Vector2(78, 214), new Vector2(260, 180), 1, Border);
+        CoopPromptUI.Hero(new Rect(48, 106, 132, 150), 0);
+        CoopPromptUI.Hero(new Rect(167, 148, 99, 108), 1);
+        Text(new Rect(61, 260, 103, 23), "Mimo", 12, Lavender, true, TextAnchor.MiddleCenter);
+        Text(new Rect(165, 260, 103, 23), "Pipro", 12, Accent, true, TextAnchor.MiddleCenter);
+    }
+
+    bool ModeCard(Rect rect, string title, string detail, Color accent, bool wifi) {
+        bool hovered = rect.Contains(Event.current.mousePosition);
+        Color surface = IllustratedHome ? HomeSurface : Surface;
+        Card(rect, hovered ? accent : IllustratedHome ? HomeBorder : Border,
+            hovered ? Color.Lerp(surface, accent, .12f) : surface);
+        bool selected = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        var at = new Vector2(rect.x + 26, rect.center.y);
+        if (wifi) {
+            WifiIcon(at, accent);
+        } else {
+            Card(new Rect(at.x - 13, at.y - 9, 26, 17), accent, Surface);
+            CoopPromptUI.Line(at + new Vector2(0, 8), at + new Vector2(0, 13), 1.5f, accent);
+            CoopPromptUI.Line(at + new Vector2(-7, 13), at + new Vector2(7, 13), 1.5f, accent);
+        }
+        Text(new Rect(rect.x + 51, rect.y + 11, 207, 25), title, 17, Ink, true);
+        Text(new Rect(rect.x + 51, rect.y + 36, 211, 19), detail, 11, Muted);
+        CoopPromptUI.Arrow(new Vector2(rect.xMax - 17, rect.center.y), 3, 6, accent);
+        return selected;
+    }
+
+    static void WifiIcon(Vector2 center, Color color) {
+        var origin = center + new Vector2(0, 9);
+        for (int radius = 8; radius <= 18; radius += 5) {
+            var previous = origin + new Vector2(Mathf.Cos(-2.3f), Mathf.Sin(-2.3f)) * radius;
+            for (int point = 1; point <= 8; point++) {
+                float angle = -2.3f + point * .18f;
+                var next = origin + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                CoopPromptUI.Line(previous, next, 1.6f, color);
+                previous = next;
+            }
+        }
+        CoopPromptUI.Fill(new Rect(origin.x - 1.5f, origin.y - 1.5f, 3, 3), color);
+    }
+
+    void DrawMissions() {
+        Text(new Rect(24, 81, 430, 28), "Misiones", 21, Ink, true);
+        int unlocked = GameDuoCampaign.UnlockedStage;
+        for (int i = 0; i < GameDuoCampaign.Scenes.Length; i++) {
+            bool locked = i > unlocked;
+            bool current = i == unlocked;
+            var rect = new Rect(24, 113 + i * 40, 592, 35);
+            bool hovered = !locked && rect.Contains(Event.current.mousePosition);
+            Color edge = current || hovered ? Accent : Border;
+            Card(rect, edge, hovered ? Color.Lerp(Surface, Accent, .12f) : Surface);
+            bool selected = !locked && GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            Text(new Rect(37, rect.y, 32, rect.height), (i + 1).ToString("00"), 12, locked ? Muted : current || hovered ? Accent : Lavender, true);
+            Text(new Rect(76, rect.y, 420, rect.height), GameDuoCampaign.Titles[i], 14, locked ? Muted : Ink, !locked);
+            Text(new Rect(513, rect.y, 88, rect.height), locked ? "Bloqueada" : "Jugar", 11,
+                locked ? Muted : Accent, !locked, TextAnchor.MiddleRight);
+            if (selected) TryStartMission(i);
+        }
+        Back(new Rect(24, 322, 100, 26));
+    }
+
+    void DrawWifi() {
+        Text(new Rect(24, 81, 540, 34), "Dos dispositivos", 21, Ink, true);
+        var mode = GameDuoLan.Mode;
+        if (mode == GameDuoLan.LanMode.Guest) {
+            Card(new Rect(174, 128, 292, 86), Border, Surface);
+            Text(new Rect(190, 136, 260, 28), "Mando de Pipro", 16, Ink, true, TextAnchor.MiddleCenter);
+            CoopPromptUI.Text(new Rect(184, 172, 272, 28), GameDuoLan.Status, 11, Muted);
+        } else if (mode == GameDuoLan.LanMode.Host) {
+            Card(new Rect(24, 124, 592, 178), Border, Surface);
+            Text(new Rect(46, 136, 550, 26), "Anfitrión", 17, Ink, true);
+            Text(new Rect(46, 174, 550, 31), "IP para compartir: " + GameDuoLan.Address, 17, Lavender, true);
+            CoopPromptUI.Text(new Rect(40, 210, 560, 27), GameDuoLan.Status, 11, Muted);
+            if (Action(new Rect(198, 252, 244, 35), "Empezar campaña", Accent, Ink, GameDuoLan.Connected))
+                StartGame();
+        } else {
+            Text(new Rect(24, 116, 592, 24), "El anfitrión muestra el juego. El otro dispositivo sirve de mando.", 12, Muted);
+            Card(new Rect(24, 154, 280, 146), Border, Surface);
+            Card(new Rect(320, 154, 296, 146), Border, Surface);
+            Text(new Rect(42, 165, 245, 28), "Crear partida", 16, Ink, true);
+            Text(new Rect(42, 199, 245, 23), "Empiecen desde la primera misión.", 11, Muted);
+            if (Action(new Rect(42, 252, 244, 34), "Crear partida", Accent, Ink)) GameDuoLan.StartHost();
+            Text(new Rect(338, 165, 261, 28), "Unirse a una partida", 16, Ink, true);
+            Text(new Rect(338, 194, 261, 19), "IP del anfitrión", 11, Muted);
+            joinIp = GUI.TextField(new Rect(338, 215, 260, 27), joinIp, 32);
+            if (Action(new Rect(338, 252, 260, 34), "Unirme", Lavender, Ink, !string.IsNullOrWhiteSpace(joinIp)))
+                GameDuoLan.Join(joinIp);
+        }
+
+        var back = mode == GameDuoLan.LanMode.Guest ? new Rect(270, 236, 100, 28) : new Rect(24, 322, 100, 26);
+        if (Action(back, "Volver", Border, Ink)) {
+            GameDuoLan.Local();
+            if (mode == GameDuoLan.LanMode.Local) page = Page.Home;
+        }
+    }
+
+    void DrawPrivacy() {
+        Text(new Rect(24, 81, 592, 34), "Privacidad de DimDam", 21, Ink, true);
+        Card(new Rect(24, 126, 592, 157), Border, Surface);
+        CoopPromptUI.Text(new Rect(45, 135, 550, 130),
+            "Tu progreso se guarda en este dispositivo. DimDam no requiere cuenta ni incluye anuncios, compras o análisis de uso.\n\n" +
+            "La IP y los controles se usan solo en tu red Wi-Fi. No se envían a servidores externos ni a los desarrolladores.", 13, Muted);
+        Back(new Rect(24, 322, 100, 26));
+    }
+
+    void Back(Rect rect) {
+        if (Action(rect, "Volver", Border, Ink)) page = Page.Home;
+    }
+
+    bool Action(Rect rect, string title, Color accent, Color color, bool enabled = true) {
+        bool hovered = enabled && rect.Contains(Event.current.mousePosition);
+        Color surface = IllustratedHome ? HomeSurface : Surface;
+        Color edge = IllustratedHome && accent == Border ? HomeBorder : accent;
+        Card(rect, enabled ? edge : Border, hovered ? Color.Lerp(surface, edge, .17f) : surface);
+        bool selected = enabled && GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        Text(rect, title, 12, enabled ? color : Muted, true, TextAnchor.MiddleCenter);
+        return selected;
+    }
+
+    static void Card(Rect rect, Color border, Color fill) {
+        CoopPromptUI.Fill(rect, fill);
+        CoopPromptUI.Fill(new Rect(rect.x, rect.y, rect.width, 1), border);
+        CoopPromptUI.Fill(new Rect(rect.x, rect.yMax - 1, rect.width, 1), border);
+        CoopPromptUI.Fill(new Rect(rect.x, rect.y + 1, 1, rect.height - 2), border);
+        CoopPromptUI.Fill(new Rect(rect.xMax - 1, rect.y + 1, 1, rect.height - 2), border);
+    }
+
+    void Text(Rect rect, string value, int size, Color color, bool bold = false, TextAnchor align = TextAnchor.MiddleLeft) {
+        if (label == null) label = new GUIStyle(GUI.skin.label) { padding = new RectOffset() };
+        label.fontSize = size;
+        label.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+        label.alignment = align;
+        label.normal.textColor = color;
+        GUI.Label(rect, value, label);
+    }
+
+    static void Quit() {
 #if UNITY_EDITOR
-  UnityEditor.EditorApplication.isPlaying=false;
+        UnityEditor.EditorApplication.isPlaying = false;
 #else
-  Application.Quit();
+        Application.Quit();
 #endif
- }
+    }
 }
 }

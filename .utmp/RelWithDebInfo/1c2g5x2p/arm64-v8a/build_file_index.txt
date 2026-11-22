@@ -1,0 +1,2 @@
+D:\2-2026\to google play\AlwaysTogether\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+D:\2-2026\to google play\AlwaysTogether\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

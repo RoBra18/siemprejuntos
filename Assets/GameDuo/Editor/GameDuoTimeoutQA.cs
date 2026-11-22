@@ -35,7 +35,7 @@ public class GameDuoTimeoutProbe:MonoBehaviour {
  IEnumerator Start(){
   DontDestroyOnLoad(gameObject);deadline=Time.realtimeSinceStartup+45;
   yield return null;
-  var menu=Resources.Load<Texture2D>("MainMenu");Check(menu&&menu.width==1672&&menu.height==941,"Replacement menu texture imports at expected dimensions");
+  var heroes=Resources.Load<PixelAnimationSet>("GameDuoControlHeroes");Check(heroes&&heroes.frames.Length>=2&&heroes.frames[0]&&heroes.frames[1],"Main menu hero sprites are available");
   var neon=FindAnyObjectByType<NeonLevel>();
   // Solved progress must never be recovered after a round timeout.
   neon.crossed[0].Set(true);neon.crossed[0].target.Set(true);
