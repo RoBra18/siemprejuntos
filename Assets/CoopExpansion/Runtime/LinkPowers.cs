@@ -42,7 +42,7 @@ public class LinkPowers:MonoBehaviour {
  public void FinishDance(){ultimateUntil=Time.time+8;UltimatesUsed++;}
  void OnDestroy(){if(game&&!game.Practice&&game.Started&&!game.Running&&!game.Victory)carriedCharge=0;}
  public static float Distance(Vector2 point,Vector2 a,Vector2 b){var d=b-a;return Vector2.Distance(point,a+d*Mathf.Clamp01(Vector2.Dot(point-a,d)/Mathf.Max(.0001f,d.sqrMagnitude)));}
- void OnGUI(){if(!game||!game.Running)return;GUI.depth=-1;PixelFont.Begin();var cyan=new Color(.25f,.85f,1);bool charged=Charge>=ChargeRequired;PixelFont.Panel(new Rect(8,40,378,33),PixelFont.Ink,cyan);PixelFont.Fill(new Rect(16,46,362,7),new Color(.08f,.2f,.3f));PixelFont.Fill(new Rect(16,46,362*Charge/ChargeRequired,7),cyan);if(TouchHud){
+ void OnGUI(){if(GameDuoCinema.Busy||!game||!game.Running)return;GUI.depth=-1;PixelFont.Begin();var cyan=new Color(.25f,.85f,1);bool charged=Charge>=ChargeRequired;PixelFont.Panel(new Rect(8,40,378,33),PixelFont.Ink,cyan);PixelFont.Fill(new Rect(16,46,362,7),new Color(.08f,.2f,.3f));PixelFont.Fill(new Rect(16,46,362*Charge/ChargeRequired,7),cyan);if(TouchHud){
    for(int i=0;i<2;i++){
     Color color=CoopPresentation.PlayerColor(i);
     var at=new Vector2(28+i*34,61);

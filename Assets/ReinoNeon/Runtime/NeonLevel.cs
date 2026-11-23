@@ -6,12 +6,34 @@ public class NeonLevel:MonoBehaviour {
  public const float CoreStepDuration=25; public const string ScenePath="Assets/ReinoNeon/Scenes/ReinoNeon.unity";
  public GameManager game; public NeonDevice[] crossed; public NeonDevice entryGate,relayGate,finalGate;
  public BubblegumHeavy battery; public Transform socketA,socketB,terminal,coreA,coreB,coreC,padA,padB,fragment,exit;
- public GameObject relayBridge,coreBridge;public SpriteRenderer reactor; public Sprite[] reactorFrames;
+ public GameObject relayBridge,coreBridge;
+ [SerializeField] GameObject coreBridgeInactive;public SpriteRenderer reactor; public Sprite[] reactorFrames;
  public int Checkpoint{get;private set;} public int CoreStep{get;private set;} public bool SocketA{get;private set;}public bool Routed{get;private set;}public bool RelayDone{get;private set;} public bool Restored{get;private set;}public bool Collected{get;private set;}public bool Completed{get;private set;}
  public float Remaining=>Mathf.Max(0,deadline-Time.time); public int CrossedCount{get{int n=0;foreach(var d in crossed)if(d.powered)n++;return n;}}
  public bool TimedOut{get;private set;}
  public float RoundRemaining{get;private set;}=60; bool roundStarted; float deadline,charge,rewardTime;string notice="Restablece la energia del nucleo trabajando en equipo";float noticeUntil=12;readonly float[] last={-1,-1};
- void Start(){game.BeginExploration();relayBridge.SetActive(false);coreBridge.SetActive(false);battery.maxX=18;}
+ void Start(){game.BeginExploration();relayBridge.SetActive(false);AddCoreBridgeLights();SetCoreBridge(false);battery.maxX=18;}
+ void AddCoreBridgeLights(){
+  if(!GameDuoCampaign.InCampaignScene||!coreBridge.TryGetComponent<BoxCollider2D>(out var surface))return;
+  var top=surface.offset+Vector2.up*(surface.size.y*.5f);
+  AddBridgeLight("Borde cian del puente",top,new Vector2(surface.size.x,.14f),new Color(.05f,.9f,1f));
+  AddBridgeLight("Línea luminosa del puente",top+Vector2.up*.025f,new Vector2(surface.size.x,.048f),new Color(.82f,1f,1f));
+ }
+ void AddBridgeLight(string label,Vector2 point,Vector2 size,Color color){
+  var light=new GameObject(label);
+  light.transform.SetParent(coreBridge.transform,false);
+  light.transform.localPosition=point;
+  var renderer=light.AddComponent<SpriteRenderer>();
+  renderer.sprite=ExpansionSprites.Square;
+  var artSize=renderer.sprite.bounds.size;
+  light.transform.localScale=new Vector3(size.x/artSize.x,size.y/artSize.y,1);
+  renderer.color=color;
+  renderer.sortingOrder=16;
+ }
+ void SetCoreBridge(bool active){
+  coreBridge.SetActive(active);
+  if(coreBridgeInactive)coreBridgeInactive.SetActive(!active);
+ }
  public bool Near(int p,Transform t,float r=1.35f)=>p>=0&&p<2&&t&&!game.players[p].Dead&&Vector2.Distance(game.players[p].transform.position,t.position)<r;
  bool Reach(int p,Transform t,float r=1.35f)=>Near(p,t,r)&&!Physics2D.Linecast(game.players[p].transform.position,t.position,1<<8).collider;
  void Say(string s){notice=s;noticeUntil=Time.time+6;}
@@ -21,13 +43,13 @@ public class NeonLevel:MonoBehaviour {
  bool ok=false;
  if(p==1&&SocketA&&Reach(p,terminal)){Routed=!Routed;Say(Routed?"Mimo, lleva la batería al segundo zócalo":"Circuito A activo");ok=true;}
  else if(RelayDone&&!Restored){
- if(p==0&&CoreStep==0&&Reach(p,coreA)){CoreStep=1;deadline=Time.time+CoreStepDuration;coreBridge.SetActive(true);Say("Pipro, cruza y cambia la dirección");ok=true;}
+ if(p==0&&CoreStep==0&&Reach(p,coreA)){CoreStep=1;deadline=Time.time+CoreStepDuration;SetCoreBridge(true);Say("Pipro, cruza y cambia la dirección");ok=true;}
  else if(p==1&&CoreStep==1&&Reach(p,coreB)){CoreStep=2;deadline=Time.time+CoreStepDuration;Say("Mimo, activa el panel derecho");ok=true;}
  else if(p==0&&CoreStep==2&&Reach(p,coreC)){CoreStep=3;deadline=Time.time+CoreStepDuration;Say("Cada uno a su placa de carga");ok=true;}
  }
  if(ok){last[p]=Time.time;BeamFX.Burst(game.players[p].transform.position,Color.cyan,10);game.Tone(660,.1f);}return ok;
  }
- void Update(){if(GameDuoCinema.Busy||Completed&&GameDuoCampaign.InCampaignScene)return;
+ void Update(){if(GameDuoCampaign.Paused||GameDuoCinema.Busy||Completed&&GameDuoCampaign.InCampaignScene)return;
  if(TimedOut){var keyboard=Keyboard.current;if(keyboard!=null&&keyboard.rKey.wasPressedThisFrame)game.Restart();return;}
  if(!roundStarted&&startGate.Poll())roundStarted=true;
  var k=Keyboard.current;if(k!=null){if(k.rKey.wasPressedThisFrame){ResetTogether();return;}if(k.mKey.wasPressedThisFrame){CandyCampaign.Map();return;}if(k.sKey.wasPressedThisFrame)Interact(0);if(k.downArrowKey.wasPressedThisFrame)Interact(1);}
@@ -55,12 +77,12 @@ public class NeonLevel:MonoBehaviour {
  RoundRemaining=60;
  if(Checkpoint==0){foreach(var d in crossed){d.Set(false);d.target.Set(false);}entryGate.Set(false);}
  if(Checkpoint<2){battery.Restore();Routed=RelayDone=false;SocketA=false;relayGate.Set(false);battery.maxX=18;}
- if(!Restored){CoreStep=0;charge=0;coreBridge.SetActive(false);}else coreBridge.SetActive(true);
+ if(!Restored){CoreStep=0;charge=0;SetCoreBridge(false);}else SetCoreBridge(true);
  PlaceTogether(Checkpoint==0?new Vector2(-8,1):Checkpoint==1?new Vector2(14.5f,1):Checkpoint==2?new Vector2(37,1):new Vector2(54,1));last[0]=last[1]=-1;Say("Equipo reunido en el último control");
  }
  void DrawInteractionPrompt(int player,Transform target){
   var camera=Camera.main;if(!camera||!Reach(player,target))return;
-  var at=camera.WorldToViewportPoint(target.position+Vector3.up*1.2f);
+  var at=PixelFont.WorldToHudViewport(camera,target.position+Vector3.up*1.2f);
   if(at.z<=0||at.x<0||at.x>1||at.y<0||at.y>1)return;
   float x=Mathf.Clamp(at.x*640,52,588),y=Mathf.Clamp((1-at.y)*360,105,265);
   var color=CoopPresentation.PlayerColor(player);
@@ -78,8 +100,8 @@ public class NeonLevel:MonoBehaviour {
    else if(CoreStep==2)DrawInteractionPrompt(0,coreC);
   }
  }
- void OnGUI(){if(GameDuoCinema.Busy)return;bool touch=GameDuoCampaign.InCampaignScene&&CoopPromptUI.TouchControls;GUI.depth=-10;PixelFont.Begin();PixelFont.Panel(new Rect(2,2,636,38),PixelFont.Ink,Color.cyan);PixelFont.Text(12,8,"Reino Neón · Circuitos cruzados",1,PixelFont.Cream);string objective=Completed?"Juntos brillamos":Collected?"Reúnanse en el portal":Restored?"Recojan juntos el fragmento":RelayDone?"Restauren el núcleo":entryGate.powered?(Routed?"Lleven la batería al zócalo B":SocketA?"Pipro, cambia la ruta":"Lleven la batería al zócalo A"):"Circuitos activados: "+CrossedCount+"/6";PixelFont.Text(12,25,objective,1,Color.cyan);
- if(TimedOut){PixelFont.Panel(new Rect(65,90,510,205),PixelFont.Ink,PixelFont.Pink);CoopPromptUI.Text(new Rect(105,129,430,54),"Se acabó el tiempo",24,PixelFont.Pink);if(PixelFont.Button(new Rect(220,245,200,28),touch?"Reintentar":"R / REINICIAR",true))game.Restart();return;}
+ void OnGUI(){if(GameDuoCinema.Busy||Completed&&GameDuoCampaign.InCampaignScene)return;bool touch=GameDuoCampaign.InCampaignScene&&CoopPromptUI.TouchControls;GUI.depth=-10;PixelFont.Begin();PixelFont.Panel(new Rect(2,2,GameDuoCampaign.InCampaignScene?590:636,38),PixelFont.Ink,Color.cyan);PixelFont.Text(12,8,"Reino Neón · Circuitos cruzados",1,PixelFont.Cream);string objective=Completed?"Juntos brillamos":Collected?"Reúnanse en el portal":Restored?"Recojan juntos el fragmento":RelayDone?"Restauren el núcleo":entryGate.powered?(Routed?"Lleven la batería al zócalo B":SocketA?"Pipro, cambia la ruta":"Lleven la batería al zócalo A"):"Circuitos activados: "+CrossedCount+"/6";PixelFont.Text(12,25,objective,1,Color.cyan);
+ if(TimedOut){PixelFont.Panel(new Rect(65,90,510,205),PixelFont.Ink,PixelFont.Pink);CoopPromptUI.Text(new Rect(105,129,430,54),"Se acabó el tiempo",24,PixelFont.Pink);if(GameDuoCampaign.InCampaignScene)GameDuoCampaign.DrawDefeatActions(240,game.Restart);else if(PixelFont.Button(new Rect(220,245,200,28),"R / REINICIAR",true))game.Restart();return;}
  PixelFont.Text(320,76,"TIEMPO "+Mathf.CeilToInt(RoundRemaining)+" S",2,RoundRemaining<30?Color.magenta:Color.cyan,true);if(!roundStarted){CoopPromptUI.Panel(new Rect(65,74,510,235),CoopPromptUI.Mint);
   if(touch){
    CoopPromptUI.Text(new Rect(105,93,430,37),"Circuitos cruzados",20,CoopPromptUI.Mint);

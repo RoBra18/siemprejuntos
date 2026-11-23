@@ -12,7 +12,7 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
     }
 
     static GameDuoMobileInput instance;
-    static Texture2D disc, ring, powerIcon, chevron;
+    static Texture2D disc, ring, powerIcon;
 
     readonly State[] current = new State[2], previous = new State[2];
     readonly Vector2[] visualKnob = new Vector2[2];
@@ -33,7 +33,7 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics() {
         instance = null;
-        disc = ring = powerIcon = chevron = null;
+        disc = ring = powerIcon = null;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -64,7 +64,7 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         Application.isEditor && (GameDuoCampaign.InCampaignScene ||
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().path == GameDuoMainMenu.ScenePath);
 
-    static bool Playable => !GameDuoCinema.Busy && !GameDuoTutorial.BlocksGameplay && !GameDuoCampaign.MissionWon && (
+    static bool Playable => !GameDuoCinema.Busy && !GameDuoTutorial.BlocksGameplay && !GameDuoCampaign.MissionWon && !GameDuoCampaign.Paused && (
         (GameManager.Instance && GameManager.Instance.players != null && GameManager.Instance.players.Length == 2) ||
         (GameDuoCampaign.Active && GameDuoCampaign.Instance.Stage == 3)
     );
@@ -267,17 +267,6 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         Circle(center, BaseRadius, new Color(0.06f, 0.05f, 0.12f, 0.55f));
         DrawRing(center, BaseRadius, color * 0.45f);
 
-        // Indicadores direccionales alrededor de la base
-        bool upActive = current[player].jump;
-        bool downActive = current[player].down;
-        bool leftActive = current[player].axis < -0.3f;
-        bool rightActive = current[player].axis > 0.3f;
-
-        DrawChevron(center + new Vector2(0, -44f), 0f, upActive ? Color.white : color * 0.55f);
-        DrawChevron(center + new Vector2(0, 44f), 180f, downActive ? Color.white : color * 0.55f);
-        DrawChevron(center + new Vector2(-44f, 0), 270f, leftActive ? Color.white : color * 0.55f);
-        DrawChevron(center + new Vector2(44f, 0), 90f, rightActive ? Color.white : color * 0.55f);
-
         // Knob (palanca 2D móvil con seguimiento táctil suave)
         Vector2 knobPos = center + visualKnob[player];
         Circle(knobPos, KnobRadius + 3f, new Color(0.04f, 0.03f, 0.08f, 0.75f));
@@ -313,16 +302,6 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         GUI.color = color;
         GUI.DrawTexture(new Rect(c.x - r, c.y - r, r * 2f, r * 2f), RingTex());
         GUI.color = old;
-    }
-
-    static void DrawChevron(Vector2 c, float angleDeg, Color color) {
-        var oldMat = GUI.matrix;
-        GUIUtility.RotateAroundPivot(angleDeg, c);
-        var oldCol = GUI.color;
-        GUI.color = color;
-        GUI.DrawTexture(new Rect(c.x - 10f, c.y - 10f, 20f, 20f), ChevronTex());
-        GUI.color = oldCol;
-        GUI.matrix = oldMat;
     }
 
     static void DrawTextureCentered(Vector2 c, float w, float h, Texture2D tex, Color color) {
@@ -368,24 +347,6 @@ public sealed class GameDuoMobileInput : MonoBehaviour {
         return ring;
     }
 
-    static Texture2D ChevronTex() {
-        if (chevron) return chevron;
-        chevron = new Texture2D(32, 32, TextureFormat.RGBA32, false) {
-            filterMode = FilterMode.Bilinear,
-            wrapMode = TextureWrapMode.Clamp,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        for (int y = 0; y < 32; y++) {
-            for (int x = 0; x < 32; x++) {
-                float dx = Mathf.Abs(x - 15.5f);
-                float dy = Mathf.Abs(y - (7f + dx * 1.35f));
-                float alpha = (y >= 7 && y <= 24 && dx <= 12f) ? Mathf.Clamp01((2.4f - dy) * 1.5f) : 0f;
-                chevron.SetPixel(x, y, new Color(1, 1, 1, alpha));
-            }
-        }
-        chevron.Apply();
-        return chevron;
-    }
 
     internal static Texture2D PowerIcon() {
         if (powerIcon) return powerIcon;

@@ -110,11 +110,11 @@ public sealed class GameDuoAudio : MonoBehaviour {
     }
 
     private void LoadAllClips() {
-        musicTutorial = LoadClip("backg-tutorial");
-        musicNeon = LoadClip("backg-neon");
-        musicWinter = LoadClip("backg-winter");
-        musicPenguins = LoadClip("back-pinguinos");
-        musicFinalBattle = LoadClip("final battle");
+        musicTutorial = Resources.Load<AudioClip>("CampaignMusic/Chicle");
+        musicNeon = Resources.Load<AudioClip>("CampaignMusic/Neon");
+        musicWinter = Resources.Load<AudioClip>("CampaignMusic/ReyHielo");
+        musicPenguins = Resources.Load<AudioClip>("CampaignMusic/Pinguinos");
+        musicFinalBattle = Resources.Load<AudioClip>("CampaignMusic/JefeChicle");
 
         clipJump = LoadClip("jump");
         clipDamage = LoadClip("makingDamage");

@@ -17,6 +17,7 @@ public sealed class GameDuoCampaign : MonoBehaviour {
  public static bool InCampaignScene => SceneManager.GetActiveScene().path.StartsWith("Assets/GameDuo/Scenes/",System.StringComparison.Ordinal);
  public int Stage { get; private set; }
  public bool Completed => finishing&&Stage==Scenes.Length-1;
+ public static bool Paused=>Active&&Instance.menu;
  public static bool MissionWon => Active&&Instance.finishing;
  public bool ResultsReady => finishing&&Time.time>=finishAt;
  GameManager game; NeonLevel neon; BubblegumLevel mechanisms; IcePenguinRound penguins;
@@ -82,35 +83,59 @@ public sealed class GameDuoCampaign : MonoBehaviour {
   if(!ResultsReady||GameDuoCinema.Busy)return;
   GameDuoCinema.Play(System.Array.Empty<int>(),Scenes[Stage]);
  }
- void ReturnToMainMenu(int[] movies){
-  if(!ResultsReady||GameDuoCinema.Busy)return;
+ static void ReturnToMainMenu(int[] movies){
+  if(GameDuoCinema.Busy)return;
   GameDuoLan.Local();
   GameDuoCinema.Play(movies,GameDuoMainMenu.ScenePath);
  }
- void Load(int stage){
-  Time.timeScale=1;menu=false;CandyCampaign.ArrivalPending=false;
-  GameDuoCinema.Play(stage==0?new[]{0}:new int[0],Scenes[stage]);
+ internal static void DrawDefeatActions(float y,System.Action retry){
+  var energy=CampaignEnergy.Current;
+  string detail=$"Energía: {energy.Count}/{CampaignEnergy.Capacity}";
+  if(energy.Count<CampaignEnergy.Capacity)detail+=" · Próxima en "+energy.Countdown;
+  CoopPromptUI.Text(new Rect(107,y-24,426,22),detail,12,CoopPromptUI.Amber);
+  var retryButton=new Rect(107,y,200,36);
+  if(energy.Count>0){
+   if(CoopPromptUI.Button(retryButton,"Reintentar",CoopPromptUI.Mint)){retry();return;}
+  }else if(CampaignRewardedAd.Available){
+   if(CampaignRewardedAd.Busy)
+    CoopPromptUI.Text(retryButton,"Preparando anuncio…",13,CoopPromptUI.Amber);
+   else if(CampaignRewardedAd.RetrySeconds>0)
+    CoopPromptUI.Text(retryButton,$"Sin anuncio · Reintenta en {CampaignRewardedAd.RetrySeconds} s",12,CoopPromptUI.Amber);
+   else if(CoopPromptUI.Button(retryButton,CampaignRewardedAd.Failed?"Volver a cargar anuncio":"Ver anuncio · +1 energía",CoopPromptUI.Amber))
+    CampaignRewardedAd.Show(Instance);
+  }else{
+   CoopPromptUI.Text(retryButton,"Sin energía",13,CoopPromptUI.Amber);
+  }
+  if(CoopPromptUI.Button(new Rect(333,y,200,36),"Volver al Menú",Color.white))
+   ReturnToMainMenu(System.Array.Empty<int>());
  }
  void OpenMenu(){if(menu)return;menu=true;previousScale=Time.timeScale;Time.timeScale=0;}
  void Resume(){menu=false;Time.timeScale=previousScale;}
  void OnGUI(){
-  if(GameDuoCinema.Busy||!menu&&!ResultsReady)return;
+  if(GameDuoCinema.Busy)return;
   int depth=GUI.depth;
   GUI.depth=-100;
   var matrix=GUI.matrix;
   GUI.matrix=Matrix4x4.identity;
-  if(ResultsReady)CoopPromptUI.Fill(new Rect(0,0,Screen.width,Screen.height),new Color(.015f,.01f,.045f,.8f));
+  if(ResultsReady)CoopPromptUI.Fill(new Rect(0,0,Screen.width,Screen.height),new Color(.015f,.01f,.045f,neon?1f:.8f));
   GUI.matrix=CoopPromptUI.FitSafeArea();
   if(ResultsReady)DrawResults();
-  else{
-   GUI.Box(new Rect(85,65,470,240),GUIContent.none);
-   var style=new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,wordWrap=true,fontSize=18};
-   GUI.Label(new Rect(100,80,440,60),"Capítulo "+(Stage+1)+" de "+Scenes.Length+"\n"+Titles[Stage],style);
-   if(GUI.Button(new Rect(130,145,380,30),"Continuar"))Resume();
-   if(GUI.Button(new Rect(130,183,380,30),"Reintentar capítulo"))Load(Stage);
-   if(GUI.Button(new Rect(130,221,380,30),"Volver al tutorial"))Load(0);
-   int unlocked=UnlockedStage;
-   if(unlocked>Stage&&GUI.Button(new Rect(130,259,380,30),"Ir al último capítulo desbloqueado"))Load(unlocked);
+  else if(menu){
+   CoopPromptUI.Panel(new Rect(167,132,306,94),new Color(.56f,.53f,.72f));
+   CoopPromptUI.Text(new Rect(175,139,290,27),"Pausa",16);
+   if(CoopPromptUI.Button(new Rect(179,173,134,38),"Continuar",CoopPromptUI.Mint))Resume();
+   if(CoopPromptUI.Button(new Rect(320,173,142,38),"Volver al Menú",Color.white)){
+    Resume();
+    ReturnToMainMenu(System.Array.Empty<int>());
+   }
+  }else if(!finishing&&!GameDuoTutorial.BlocksGameplay&&Time.timeScale>0&&
+   (game&&game.Running||penguins&&penguins.Started&&!penguins.Finished)){
+   var hitArea=new Rect(595,2,42,38);
+   var icon=new Rect(605,10,22,22);
+   CoopPromptUI.Fill(icon,new Color(.055f,.045f,.12f,.65f));
+   CoopPromptUI.Fill(new Rect(611,15,3,12),Color.white);
+   CoopPromptUI.Fill(new Rect(618,15,3,12),Color.white);
+   if(GUI.Button(hitArea,new GUIContent("", "Pausa"),GUIStyle.none))OpenMenu();
   }
   GUI.matrix=matrix;
   GUI.depth=depth;
@@ -128,7 +153,122 @@ public sealed class GameDuoCampaign : MonoBehaviour {
  }
  void OnDestroy(){if(menu)Time.timeScale=previousScale;if(game&&game.level)Destroy(game.level);if(Instance==this)Instance=null;}
 }
+
+internal static class CampaignEnergy {
+ public const int Capacity=6;
+ const string SaveKey="GameDuo.Energy";
+ static readonly long Interval=System.TimeSpan.FromMinutes(30).Ticks;
+
+ internal readonly struct State {
+  public readonly int Count;
+  public readonly long Next;
+  public State(int count,long next){Count=count;Next=next;}
+  public string Countdown {
+   get {
+    var remaining=System.TimeSpan.FromTicks(System.Math.Max(0,Next-System.DateTime.UtcNow.Ticks));
+    return $"{(int)remaining.TotalMinutes:00}:{remaining.Seconds:00}";
+   }
+  }
+ }
+
+ public static State Current=>Read(System.DateTime.UtcNow.Ticks);
+
+ public static void Spend(){
+  long now=System.DateTime.UtcNow.Ticks;
+  var state=Read(now);
+  if(state.Count==0)return;
+  Store(new State(state.Count-1,state.Count==Capacity?now+Interval:state.Next));
+ }
+
+ public static void GrantReward(){
+  var state=Current;
+  if(state.Count>=Capacity)return;
+  int count=state.Count+1;
+  Store(new State(count,count==Capacity?0:state.Next));
+ }
+
+ static State Read(long now){
+  string[] parts=PlayerPrefs.GetString(SaveKey,"").Split('|');
+  if(parts.Length!=2||!int.TryParse(parts[0],out int count)||!long.TryParse(parts[1],out long next))
+   return new State(Capacity,0);
+  var state=Recharge(new State(count,next),now);
+  if(state.Count!=count||state.Next!=next)Store(state);
+  return state;
+ }
+
+ internal static State Recharge(State state,long now){
+  int count=Mathf.Clamp(state.Count,0,Capacity);
+  if(count==Capacity)return new State(Capacity,0);
+  if(state.Next<=0||state.Next>now+Interval)return new State(count,now+Interval);
+  if(now<state.Next)return new State(count,state.Next);
+  long gained=1+(now-state.Next)/Interval;
+  if(gained>=Capacity-count)return new State(Capacity,0);
+  return new State(count+(int)gained,state.Next+gained*Interval);
+ }
+
+ static void Store(State state){
+  PlayerPrefs.SetString(SaveKey,$"{state.Count}|{state.Next}");
+  PlayerPrefs.Save();
+ }
 }
+internal static class CampaignRewardedAd {
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+#if UNITY_IOS && DEVELOPMENT_BUILD
+ const string Unit="ca-app-pub-3940256099942544/1712485313";
+#elif UNITY_IOS
+ const string Unit="ca-app-pub-2875851870293518/6115765364";
+#else
+ const string Unit="ca-app-pub-2875851870293518/8625560397";
+#endif
+ public static bool Available=>true;
+ public static bool Busy {get;private set;}
+ public static bool Failed {get;private set;}
+ static bool initialized;
+ static double retryAt;
+ public static int RetrySeconds=>System.Math.Max(0,(int)System.Math.Ceiling(retryAt-Time.realtimeSinceStartupAsDouble));
 
+ public static void Show(MonoBehaviour owner){
+  if(Busy||RetrySeconds>0||!owner||CampaignEnergy.Current.Count>0)return;
+  Busy=true;
+  Failed=false;
+  if(initialized){Load(owner);return;}
+  GoogleMobileAds.Api.MobileAds.RaiseAdEventsOnUnityMainThread=true;
+  GoogleMobileAds.Api.MobileAds.Initialize(_=> {
+   initialized=true;
+   Load(owner);
+  });
+ }
 
+ static void Load(MonoBehaviour owner){
+  GoogleMobileAds.Api.RewardedAd.Load(Unit,new GoogleMobileAds.Api.AdRequest(),(ad,error)=>{
+   if(error!=null||ad==null||!ad.CanShowAd()){
+    ad?.Destroy();Finish(true);return;
+   }
+   if(!owner||GameDuoCinema.Busy||CampaignEnergy.Current.Count>0){
+    ad.Destroy();Finish(false);return;
+   }
+   bool rewarded=false;
+   ad.OnAdFullScreenContentClosed+=()=>{ad.Destroy();Finish(false);};
+   ad.OnAdFullScreenContentFailed+=_=>{ad.Destroy();Finish(true);};
+   ad.Show(_=>{
+    if(rewarded)return;
+    rewarded=true;
+    CampaignEnergy.GrantReward();
+   });
+  });
+ }
 
+ static void Finish(bool failed){
+  Failed=failed;
+  retryAt=failed?Time.realtimeSinceStartupAsDouble+30:0;
+  Busy=false;
+ }
+#else
+ public static bool Available=>false;
+ public static bool Busy=>false;
+ public static bool Failed=>false;
+ public static int RetrySeconds=>0;
+ public static void Show(MonoBehaviour owner){}
+#endif
+}
+}

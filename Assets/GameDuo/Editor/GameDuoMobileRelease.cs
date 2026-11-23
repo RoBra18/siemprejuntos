@@ -16,8 +16,9 @@ using UnityEngine.SceneManagement;
 
 // Headless release checks: unity -batchmode -quit -projectPath ... -executeMethod GameDuoMobileRelease.Validate
 public static class GameDuoMobileRelease {
- const string Package="com.winnergamejam.dimdam";
- const string Output="Builds/Android/DimDam.aab";
+ const string ProductName="Siempre Juntos";
+ const string Package="com.rogerfarfan.siemprejuntos";
+ const string OutputRoot="Builds/Android";
  static void Require(bool condition,string message){if(!condition)throw new Exception("MOBILE_QA_FAILED: "+message);Debug.Log("MOBILE_QA_OK: "+message);}
  [MenuItem("Tools/DimDam/Validar móvil y multijugador")]
  public static void Validate(){
@@ -153,6 +154,7 @@ public static class GameDuoMobileRelease {
    EditorUserBuildSettings.buildAppBundle=false;
    EditorUserBuildSettings.exportAsGoogleAndroidProject=false;
    PlayerSettings.Android.useCustomKeystore=false;
+   PrepareAndroidMovies();
    var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{
     scenes=GameDuoCampaignBuildScenes(),locationPathName=output,target=BuildTarget.Android,options=BuildOptions.None
    });
@@ -169,9 +171,12 @@ public static class GameDuoMobileRelease {
  [MenuItem("Tools/DimDam/Crear AAB Android")]
  public static void BuildAndroid(){
   Validate();
-  PlayerSettings.companyName="Winner Game Jam";PlayerSettings.productName="DimDam";
+  PlayerSettings.companyName="Winner Game Jam";PlayerSettings.productName=ProductName;
   PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,Package);
-  PlayerSettings.bundleVersion="1.0.0";PlayerSettings.Android.bundleVersionCode=1;
+  if(PlayerSettings.Android.bundleVersionCode<2){
+   PlayerSettings.Android.bundleVersionCode=2;
+   PlayerSettings.bundleVersion="1.0.1";
+  }
   PlayerSettings.Android.minSdkVersion=(AndroidSdkVersions)26;
   PlayerSettings.Android.targetSdkVersion=(AndroidSdkVersions)36;
   PlayerSettings.Android.targetArchitectures=AndroidArchitecture.ARM64;
@@ -184,11 +189,122 @@ public static class GameDuoMobileRelease {
   string keyPassword=signing["keyPassword"];
   if(!File.Exists(key)||string.IsNullOrEmpty(storePassword)||string.IsNullOrEmpty(alias)||string.IsNullOrEmpty(keyPassword))throw new Exception("ANDROID_BUILD_NEEDS_UPLOAD_KEY: check signing.txt and keystore");
   PlayerSettings.Android.useCustomKeystore=true;PlayerSettings.Android.keystoreName=key;PlayerSettings.Android.keystorePass=storePassword;PlayerSettings.Android.keyaliasName=alias;PlayerSettings.Android.keyaliasPass=keyPassword;
-  Directory.CreateDirectory(Path.GetDirectoryName(Output));
-  var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=GameDuoCampaignBuildScenes(),locationPathName=Output,target=BuildTarget.Android,options=BuildOptions.None});
+  PrepareAndroidMovies();
+  string output=Path.Combine(OutputRoot,DateTime.Now.ToString("yyyyMMdd-HHmmss-fff"),"SiempreJuntos.aab");
+  Directory.CreateDirectory(Path.GetDirectoryName(output));
+  var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=GameDuoCampaignBuildScenes(),locationPathName=output,target=BuildTarget.Android,options=BuildOptions.None});
   if(report.summary.result!=BuildResult.Succeeded)throw new Exception("ANDROID_BUILD_FAILED: "+report.summary.result);
-  Debug.Log("ANDROID_AAB_SUCCEEDED: "+Path.GetFullPath(Output)+" / "+report.summary.totalSize+" bytes");
+  Debug.Log("ANDROID_AAB_SUCCEEDED: "+Path.GetFullPath(output)+" / "+report.summary.totalSize+" bytes");
+ }
+ static void PrepareAndroidMovies(){
+  var library=Resources.Load<GameDuoMovieLibrary>("GameDuoMovies");
+  Require(library&&library.clips!=null&&library.clips.Length==9,"nine campaign movies bundled");
+  foreach(var clip in library.clips){
+   Require(clip,"cinematic reference is present");
+   var importer=AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(clip)) as VideoClipImporter;
+   if(!importer)throw new Exception("Missing video importer: "+clip.name);
+   var settings=importer.GetTargetSettings("Android")??new VideoImporterTargetSettings();
+   if(settings.enableTranscoding&&settings.codec==VideoCodec.H264&&settings.resizeMode==VideoResizeMode.CustomSize&&
+    settings.customWidth==1280&&settings.customHeight==720&&settings.bitrateMode==VideoBitrateMode.High)continue;
+   settings.enableTranscoding=true;
+   settings.codec=VideoCodec.H264;
+   settings.resizeMode=VideoResizeMode.CustomSize;
+   settings.customWidth=1280;
+   settings.customHeight=720;
+   settings.bitrateMode=VideoBitrateMode.High;
+   importer.SetTargetSettings("Android",settings);
+   importer.SaveAndReimport();
+  }
  }
  static string[] GameDuoCampaignBuildScenes(){var scenes=new string[GameDuoCampaign.Scenes.Length+1];scenes[0]=GameDuoMainMenu.ScenePath;Array.Copy(GameDuoCampaign.Scenes,0,scenes,1,GameDuoCampaign.Scenes.Length);return scenes;}
  static Dictionary<string,string> LoadSigning(){string file=Environment.GetEnvironmentVariable("DIMDAM_SIGNING_FILE");if(string.IsNullOrEmpty(file))file=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"DimDam Play Store Handoff","signing.txt");if(!File.Exists(file))throw new Exception("ANDROID_BUILD_NEEDS_UPLOAD_KEY: "+file);var values=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);foreach(var line in File.ReadAllLines(file)){int split=line.IndexOf('=');if(split>0)values[line.Substring(0,split).Trim()]=line.Substring(split+1).Trim();}foreach(var name in new[]{"keystore","storePassword","alias","keyPassword"})if(!values.ContainsKey(name))throw new Exception("ANDROID_BUILD_NEEDS_UPLOAD_KEY: missing "+name);return values;}
+}
+
+public sealed class GameDuoAndroidIcon : IPreprocessBuildWithReport {
+ public int callbackOrder=>0;
+
+ const string SourcePath="Assets/GameDuo/Branding/SiempreJuntosIcon.png";
+ const string AdaptivePath="Assets/GameDuo/Branding/SiempreJuntosIconAdaptive.png";
+ const int TextureSize=512;
+ const float ArtworkScale=.55f;
+
+ public void OnPreprocessBuild(BuildReport report){
+  if(report.summary.platform!=BuildTarget.Android)return;
+  var icon=PrepareAdaptiveTexture();
+  var kind=UnityEditor.Android.AndroidPlatformIconKind.Adaptive;
+  var icons=PlayerSettings.GetPlatformIcons(NamedBuildTarget.Android,kind);
+  foreach(var slot in icons)slot.SetTextures(icon,icon);
+  PlayerSettings.SetPlatformIcons(NamedBuildTarget.Android,kind,icons);
+ }
+
+ static Texture2D PrepareAdaptiveTexture(){
+  if(!File.Exists(SourcePath))throw new BuildFailedException("No se encontró el icono Android de Siempre Juntos.");
+  var original=new Texture2D(2,2,TextureFormat.RGBA32,false);
+  var adaptive=new Texture2D(TextureSize,TextureSize,TextureFormat.RGBA32,false);
+  try{
+   if(!ImageConversion.LoadImage(original,File.ReadAllBytes(SourcePath)))
+    throw new BuildFailedException("No se pudo leer el icono Android de Siempre Juntos.");
+   original.wrapMode=TextureWrapMode.Clamp;
+   var pixels=new Color32[TextureSize*TextureSize];
+   var navy=new Color(.035f,.055f,.17f,1);
+   // Center the full illustration and extend its edge colors into the launcher mask.
+   for(int y=0;y<TextureSize;y++){
+    float v=((y+.5f)/TextureSize-.5f)/ArtworkScale+.5f;
+    for(int x=0;x<TextureSize;x++){
+     float u=((x+.5f)/TextureSize-.5f)/ArtworkScale+.5f;
+     var color=original.GetPixelBilinear(Mathf.Clamp01(u),Mathf.Clamp01(v));
+     float distance=Mathf.Max(Mathf.Abs(u-.5f),Mathf.Abs(v-.5f))-.5f;
+     var pixel=Color.Lerp(color,navy,Mathf.SmoothStep(0,1,distance/.16f));
+     pixel.a=1;
+     pixels[y*TextureSize+x]=pixel;
+    }
+   }
+   adaptive.SetPixels32(pixels);
+   adaptive.Apply();
+   var png=ImageConversion.EncodeToPNG(adaptive);
+   if(!File.Exists(AdaptivePath)||!System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(AdaptivePath),png)){
+    File.WriteAllBytes(AdaptivePath,png);
+    AssetDatabase.ImportAsset(AdaptivePath,ImportAssetOptions.ForceSynchronousImport);
+   }
+  }finally{
+   UnityEngine.Object.DestroyImmediate(adaptive);
+   UnityEngine.Object.DestroyImmediate(original);
+  }
+  var icon=AssetDatabase.LoadAssetAtPath<Texture2D>(AdaptivePath);
+  if(!icon)throw new BuildFailedException("No se pudo importar el icono adaptativo de Siempre Juntos.");
+  return icon;
+ }
+}
+public sealed class GameDuoAndroidFeatures : UnityEditor.Android.IPostGenerateGradleAndroidProject {
+ public int callbackOrder=>100;
+
+ public void OnPostGenerateGradleAndroidProject(string path){
+  // Set the optional capability in the highest-priority launcher manifest.
+  string manifest=Path.GetFullPath(Path.Combine(path,"..","launcher","src","main","AndroidManifest.xml"));
+  if(!File.Exists(manifest))throw new BuildFailedException("No se encontró el manifiesto del lanzador Android.");
+  var xml=new System.Xml.XmlDocument();
+  xml.Load(manifest);
+  var root=xml.DocumentElement;
+  if(root==null)throw new BuildFailedException("El manifiesto del lanzador Android está vacío.");
+  const string android="http://schemas.android.com/apk/res/android";
+  const string landscape="android.hardware.screen.landscape";
+  foreach(System.Xml.XmlNode node in root.ChildNodes){
+   if(node is System.Xml.XmlElement element&&element.Name=="uses-feature"&&element.GetAttribute("name",android)==landscape){
+    SetAndroidAttribute(element,"required","false",android);
+    xml.Save(manifest);
+    return;
+   }
+  }
+  var feature=xml.CreateElement("uses-feature");
+  SetAndroidAttribute(feature,"name",landscape,android);
+  SetAndroidAttribute(feature,"required","false",android);
+  root.PrependChild(feature);
+  xml.Save(manifest);
+ }
+
+ static void SetAndroidAttribute(System.Xml.XmlElement element,string name,string value,string ns){
+  var attribute=element.OwnerDocument.CreateAttribute("android",name,ns);
+  attribute.Value=value;
+  element.SetAttributeNode(attribute);
+ }
 }

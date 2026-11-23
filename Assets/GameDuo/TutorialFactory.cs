@@ -22,10 +22,24 @@ public sealed class TutorialFactory : MonoBehaviour {
  static readonly int[] FearSequence={0,1,0,2,2,1,3,4,4,3,1,0};
  [SerializeField] Sprite[] fear;
  [SerializeField] SpriteRenderer royal;
+ bool hallExtended;
  [SerializeField] Vector3 royalRest;
  public static Vector2 ImagePoint(float x,float y)=>new Vector2((x/1672f-.5f)*26.65f,7.0f-y/941f*15f);
  static Sprite Art(string name){var sprite=Resources.Load<Sprite>("GameDuo/Throne/"+name);if(!sprite)throw new System.InvalidOperationException("Missing throne art: "+name);return sprite;}
- void Start(){if(!royal||fear==null||fear.Length!=5||!transform.Find("Salon del trono"))Build();}
+ void Start(){
+  if(!royal||fear==null||fear.Length!=5||!transform.Find("Salon del trono"))Build();
+  else AddHallBounds();
+ }
+ void AddHallBounds(){
+  for(int side=-1;side<=1;side+=2){
+   var edge=ImagePoint(side<0?0:1672,709);
+   var wall=new GameObject(side<0?"Límite izquierdo del salón":"Límite derecho del salón");
+   wall.layer=8;
+   wall.transform.SetParent(transform,false);
+   wall.transform.position=new Vector3(edge.x+side*.25f,edge.y+8f,0);
+   wall.AddComponent<BoxCollider2D>().size=new Vector2(.5f,17f);
+  }
+ }
  public void Build(){
   foreach(Transform child in transform)child.gameObject.SetActive(false);
   foreach(var r in FindObjectsByType<SpriteRenderer>())if(!r.GetComponentInParent<PlayerController2D>()&&!r.GetComponentInParent<EnemyBase>())r.enabled=false;
@@ -33,6 +47,7 @@ public sealed class TutorialFactory : MonoBehaviour {
   foreach(var l in FindObjectsByType<UnityEngine.Rendering.Universal.Light2D>())if(l.lightType!=UnityEngine.Rendering.Universal.Light2D.LightType.Global)l.gameObject.SetActive(false);
   var bg=new GameObject("Salon del trono");bg.transform.SetParent(transform,false);bg.transform.localPosition=new Vector3(0,-.5f,0);
   var backdrop=bg.AddComponent<SpriteRenderer>();backdrop.sprite=Art("Hall");backdrop.sortingOrder=-100;
+  hallExtended=false;
   bg.transform.localScale=new Vector3(26.65f/backdrop.sprite.bounds.size.x,15/backdrop.sprite.bounds.size.y,1);
   // Physical surfaces use the exact same image-to-world mapping as the painted steps.
   foreach(var box in FindObjectsByType<BoxCollider2D>()){
@@ -41,6 +56,7 @@ public sealed class TutorialFactory : MonoBehaviour {
    box.enabled=false;
   }
   Surface("Suelo del salon",0,1672,709,false);
+  AddHallBounds();
   Surface("Escalon trono inferior",650,958,645,true);
   Surface("Escalon trono medio",678,930,615,true);
   Surface("Escalon trono superior",704,902,588,true);
@@ -76,6 +92,28 @@ public sealed class TutorialFactory : MonoBehaviour {
   Part(root.transform,"Glaseado rosa",0,.1f,width,.14f,new Color(1,.57f,.70f),4);
   Part(root.transform,"Borde dorado transitable",0,.17f,width,.02f,new Color(1,.85f,.51f),5);
   for(int side=-1;side<=1;side+=2)Part(root.transform,"Soporte de caramelo",side*(width*.5f-.24f),-.27f,.2f,.23f,new Color(.88f,.61f,.31f),1,1);
+ }
+ void LateUpdate(){
+  if(hallExtended||!PixelViewport.WideCampaign)return;
+  var hall=transform.Find("Salon del trono");
+  if(!hall||!hall.TryGetComponent<SpriteRenderer>(out var backdrop)||!backdrop.sprite)return;
+  var bounds=backdrop.sprite.bounds;
+  ExtendHall(backdrop,"Salón · lateral izquierdo",bounds.min.x);
+  ExtendHall(backdrop,"Salón · lateral derecho",bounds.max.x);
+  hallExtended=true;
+ }
+ static void ExtendHall(SpriteRenderer backdrop,string name,float edge){
+  var extension=new GameObject(name);
+  extension.transform.SetParent(backdrop.transform,false);
+  // Reflect the art about its edge and keep the painted platforms centered.
+  extension.transform.localPosition=new Vector3(edge*2,0,0);
+  var renderer=extension.AddComponent<SpriteRenderer>();
+  renderer.sprite=backdrop.sprite;
+  renderer.flipX=true;
+  renderer.sharedMaterial=backdrop.sharedMaterial;
+  renderer.color=backdrop.color;
+  renderer.sortingLayerID=backdrop.sortingLayerID;
+  renderer.sortingOrder=backdrop.sortingOrder;
  }
  void Update(){
   if(!king||fear==null||royal==null)return;

@@ -27,7 +27,7 @@ public class CoopPresentation:MonoBehaviour {
   for(int i=0;i<lamps.Length;i++)if(lamps[i]){var c=lamps[i].color;c.a=.34f+Mathf.Sin(Time.time*2+i)*.06f;lamps[i].color=c;}
  }
  public static void DrawAura(float x,float y,float size,Color color,float clock){EnsureTextures();GUI.color=new Color(color.r,color.g,color.b,.3f);GUI.DrawTexture(new Rect(x-size*.85f,y-size*.85f,size*1.7f,size*1.7f),Glow);GUI.color=new Color(color.r,color.g,color.b,.9f);GUI.DrawTexture(new Rect(x-size*.5f,y-size*.65f,size,size*1.3f),flame);GUI.color=Color.Lerp(color,Color.white,.6f);GUI.DrawTexture(new Rect(x-size*.5f,y-size*.5f,size,size),ring);GUI.color=Color.white;}
- void OnGUI(){if(!g||!g.Running)return;GUI.depth=50;GUI.matrix=Matrix4x4.Scale(new Vector3(Screen.width/640f,Screen.height/360f,1));GUI.color=new Color(.025f,.015f,.09f,.12f);GUI.DrawTexture(new Rect(0,0,640,360),Texture2D.whiteTexture);GUI.color=Color.white;}
+ void OnGUI(){if(GameDuoCinema.Busy||!g||!g.Running)return;GUI.depth=50;GUI.matrix=Matrix4x4.Scale(new Vector3(Screen.width/640f,Screen.height/360f,1));GUI.color=new Color(.025f,.015f,.09f,.12f);GUI.DrawTexture(new Rect(0,0,640,360),Texture2D.whiteTexture);GUI.color=Color.white;}
  void OnDestroy(){if(emission)Destroy(emission);}
 }
 }

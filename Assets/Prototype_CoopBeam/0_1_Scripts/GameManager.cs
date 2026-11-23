@@ -14,11 +14,11 @@ public class GameManager:MonoBehaviour {
  void Awake(){Instance=this;BeamFX.particle=particle;audioSource=gameObject.AddComponent<AudioSource>();audioSource.volume=.12f;if(explorationOnly)return;if(!GetComponent<LinkPowers>())gameObject.AddComponent<LinkPowers>();if(!GetComponent<CoopPresentation>())gameObject.AddComponent<CoopPresentation>();if(level)CandyCampaign.SelectRealm(level.Realm);}
  void OnEnable(){Instance=this;BeamFX.particle=particle;if(!audioSource)audioSource=GetComponent<AudioSource>();}
  void Start(){Physics2D.IgnoreCollision(players[0].GetComponent<Collider2D>(),players[1].GetComponent<Collider2D>(),true);}
- void Update(){if(GameDuoCinema.Busy||GameDuoCampaign.MissionWon)return;if(explorationOnly)return;var k=Keyboard.current;if(k!=null){if(!Started&&k.pKey.wasPressedThisFrame)BeginPractice();else if(Started&&k.rKey.wasPressedThisFrame)Restart();if(level&&!Running&&k.mKey.wasPressedThisFrame)CandyCampaign.Map();if(level&&Victory&&level.number<5&&k.nKey.wasPressedThisFrame)CandyCampaign.Load(level.number+1);}if(!Started&&startGate.Poll())Begin();if(Time.time-lastKill>comboWindow)Combo=0;}
+ void Update(){if(GameDuoCampaign.Paused||GameDuoCinema.Busy||GameDuoCampaign.MissionWon)return;if(explorationOnly)return;var k=Keyboard.current;if(k!=null){if(!Started&&k.pKey.wasPressedThisFrame)BeginPractice();else if(Started&&k.rKey.wasPressedThisFrame)Restart();if(level&&!Running&&k.mKey.wasPressedThisFrame)CandyCampaign.Map();if(level&&Victory&&level.number<5&&k.nKey.wasPressedThisFrame)CandyCampaign.Load(level.number+1);}if(!Started&&startGate.Poll())Begin();if(Time.time-lastKill>comboWindow)Combo=0;}
  public void BeginExploration(){if(!explorationOnly)return;Started=true;Running=true;}
  public void Begin(){if(Started||GetComponent<CandyLevelExit>()&&GetComponent<CandyLevelExit>().Arriving)return;Started=true;Running=true;if(!GetComponent<CoopInteractionDirector>())gameObject.AddComponent<CoopInteractionDirector>();StartCoroutine(Waves());}
  public void BeginPractice(){if(Started)return;Started=true;Running=true;Practice=true;if(!GetComponent<CoopInteractionDirector>())gameObject.AddComponent<CoopInteractionDirector>();GetComponent<LinkPowers>().AddCharge(LinkPowers.ChargeRequired);}
- public void Restart(){if(!Practice)LinkPowers.ResetStoredCharge();SceneManager.LoadScene(SceneManager.GetActiveScene().path);}
+ public void Restart(){if(!Practice&&GameDuoCampaign.InCampaignScene&&CampaignEnergy.Current.Count==0)return;if(!Practice)LinkPowers.ResetStoredCharge();SceneManager.LoadScene(SceneManager.GetActiveScene().path);}
  IEnumerator Waves(){var cooperation=GetComponent<CoopInteractionDirector>();yield return cooperation.Opening();for(int w=1;w<=3;w++){Wave=w;Announcement="OLEADA "+w;yield return new WaitForSeconds(1.8f);if(!Running)yield break;
  int[] kinds=level?level.waves[w-1].enemyTypes:w==1?new[]{0,0,0}:w==2?new[]{0,0,1,1}:new[]{2,2,3,0,0};
  int first=InitialBatchSize(kinds.Length),second=first+(kinds.Length-first)/2;
@@ -76,7 +76,7 @@ public class GameManager:MonoBehaviour {
     if(owned&&(!owner||!owner.isActiveAndEnabled||owner.GetComponent<EnemyBase>()&&owner.GetComponent<EnemyBase>().Health<=0))yield break;
     if(!TrySpawnPosition(kind,preferred,out var point)){yield return new WaitForSeconds(.25f);continue;}
     reserved=point;spawnReservations.Add(point);hasReservation=true;
-    marker=new GameObject("Aviso de aparicion / sin dano");marker.transform.position=point;var art=marker.AddComponent<SpriteRenderer>();art.sprite=ExpansionSprites.Square;art.sortingOrder=15;marker.transform.localScale=new Vector3(1.4f,.13f,1);
+    marker=new GameObject("Aviso de aparicion / sin dano");marker.transform.position=point;var art=marker.AddComponent<SpriteRenderer>();art.sprite=CoopInteractionDirector.AuraArt();art.sortingOrder=15;marker.transform.localScale=Vector3.one*1.45f;
     float age=0;
     while(age<SpawnWarning&&Running&&IsSpawnSafe(kind,point)){
      if(owned&&(!owner||!owner.isActiveAndEnabled||owner.GetComponent<EnemyBase>()&&owner.GetComponent<EnemyBase>().Health<=0))yield break;
@@ -92,7 +92,7 @@ public class GameManager:MonoBehaviour {
   }finally{if(marker)Destroy(marker);if(hasReservation)spawnReservations.Remove(reserved);PendingSpawns--;}
  }
  public void EnemyKilled(EnemyBase enemy){if(!enemies.Remove(enemy))return;var powers=GetComponent<LinkPowers>();if(powers)powers.OnKill(enemy.transform.position);Combo=Time.time-lastKill<=comboWindow?Mathf.Min(maxCombo,Combo+1):1;lastKill=Time.time;Score+=100*Combo;Tone(440+Combo*70,.08f);}
- public void FailRound(){Running=false;Announcement="FIN DE LA PARTIDA";}
+ public void FailRound(){if(Running&&!Practice&&GameDuoCampaign.InCampaignScene)CampaignEnergy.Spend();Running=false;Announcement="FIN DE LA PARTIDA";}
  public void CheckDefeat(){if(players[0].Dead&&players[1].Dead)FailRound();}
  public void Tone(float frequency,float duration){if(!audioSource)return;int count=(int)(22050*duration);var samples=new float[count];for(int i=0;i<count;i++)samples[i]=Mathf.Sin(2*Mathf.PI*frequency*i/22050)*(.25f*(1-(float)i/count));var clip=AudioClip.Create("Arcade tone",count,1,22050,false);clip.SetData(samples,0);audioSource.PlayOneShot(clip);Destroy(clip,duration+.2f);}
  void OnDestroy(){if(Instance==this)Instance=null;BeamFX.particle=null;}

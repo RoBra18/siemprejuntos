@@ -13,7 +13,7 @@ public sealed class GameDuoCinema : MonoBehaviour {
  bool firstFrame; bool busy, failed, ended, showingMovie; float opacity; string error;
  VideoPlayer player; AudioSource audioOutput; RenderTexture target;
  const float FadeDuration=0.35f, BlackHoldDuration=0.08f;
- bool holdBlackBackground, canSkip, skipMovies;
+ bool holdBlackBackground, canSkip, skipMovies, loadingScene;
 
  [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
  static void ResetSession(){instance=null;IntroPlayed=false;}
@@ -69,7 +69,13 @@ public sealed class GameDuoCinema : MonoBehaviour {
    } else {
     if(!player){
      player=gameObject.AddComponent<VideoPlayer>();player.playOnAwake=false;player.isLooping=false;
-     player.renderMode=VideoRenderMode.RenderTexture;player.audioOutputMode=VideoAudioOutputMode.AudioSource;
+     #if UNITY_ANDROID && !UNITY_EDITOR
+     player.renderMode=VideoRenderMode.APIOnly;
+     player.timeUpdateMode=VideoTimeUpdateMode.UnscaledGameTime;
+#else
+     player.renderMode=VideoRenderMode.RenderTexture;
+#endif
+     player.audioOutputMode=VideoAudioOutputMode.AudioSource;
      audioOutput=gameObject.AddComponent<AudioSource>();audioOutput.playOnAwake=false;audioOutput.ignoreListenerPause=true;audioOutput.spatialBlend=0;audioOutput.mute=false;audioOutput.volume=1;
      player.errorReceived+=(p,message)=>{failed=true;error=message;Debug.LogError("GameDuo video: "+message);};
      player.loopPointReached+=p=>ended=true;
@@ -86,12 +92,14 @@ public sealed class GameDuoCinema : MonoBehaviour {
     int clipW=Mathf.Max(16,(int)player.clip.width);
     int clipH=Mathf.Max(16,(int)player.clip.height);
 #endif
+#if !UNITY_ANDROID || UNITY_EDITOR
     if(!target||target.width!=clipW||target.height!=clipH){
      if(target){player.targetTexture=null;target.Release();Destroy(target);}
      target=new RenderTexture(clipW,clipH,0);target.Create();
      var prev=RenderTexture.active;RenderTexture.active=target;GL.Clear(true,true,Color.black);RenderTexture.active=prev;
     }
     player.targetTexture=target;
+#endif
 #if !UNITY_WEBGL || UNITY_EDITOR
     player.controlledAudioTrackCount=(ushort)Mathf.Min(1,(int)player.clip.audioTrackCount);
     if(player.clip.audioTrackCount>0){player.EnableAudioTrack(0,true);player.SetTargetAudioSource(0,audioOutput);}
@@ -104,7 +112,12 @@ public sealed class GameDuoCinema : MonoBehaviour {
 
    if(!failed&&!skipMovies){
     firstFrame=false;audioOutput.volume=1;player.Play();float frameDeadline=Time.realtimeSinceStartup+15;
-    while(!skipMovies&&!firstFrame&&!failed&&!ended&&Time.realtimeSinceStartup<frameDeadline)yield return null;
+    while(!skipMovies&&!firstFrame&&!failed&&!ended&&Time.realtimeSinceStartup<frameDeadline){
+#if UNITY_ANDROID && !UNITY_EDITOR
+     if(player.texture&&player.frame>=0){firstFrame=true;break;}
+#endif
+     yield return null;
+    }
     if(!skipMovies&&!firstFrame){failed=true;error="El video no pudo iniciar.";}
     if(!skipMovies&&firstFrame&&!failed){
      showingMovie=true;
@@ -125,12 +138,14 @@ public sealed class GameDuoCinema : MonoBehaviour {
 
   if(scene!=null){
    LinkPowers.ResetStoredCharge();CandyCampaign.ArrivalPending=false;
+   loadingScene=true;
    var load=SceneManager.LoadSceneAsync(scene);
    while(!load.isDone)yield return null;
    yield return null;
    yield return null;
   }
 
+  loadingScene=false;
   complete?.Invoke();
   holdBlackBackground=scene==null&&complete!=null;
 
@@ -149,14 +164,21 @@ public sealed class GameDuoCinema : MonoBehaviour {
   if(!busy&&(!GameDuoCampaign.Instance||!GameDuoCampaign.Instance.Completed))return;
   var oldMatrix=GUI.matrix;var oldColor=GUI.color;int oldDepth=GUI.depth;
   GUI.depth=busy?-10000:-99;GUI.matrix=Matrix4x4.identity;GUI.color=Color.white;
-  if(holdBlackBackground||showingMovie)GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.blackTexture);
+  var screen=new Rect(0,0,Screen.width,Screen.height);
+  if(holdBlackBackground||showingMovie)GUI.DrawTexture(screen,Texture2D.blackTexture,ScaleMode.StretchToFill,false);
   if(!busy){GUI.matrix=oldMatrix;GUI.color=oldColor;GUI.depth=oldDepth;return;}
-  if(showingMovie&&target)GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),target,ScaleMode.ScaleToFit);
+#if UNITY_ANDROID && !UNITY_EDITOR
+  Texture movie=player?player.texture:null;
+#else
+  Texture movie=target;
+#endif
+  if(showingMovie&&movie)GUI.DrawTexture(screen,movie,ScaleMode.ScaleToFit,false);
   if(opacity>0.002f){
    GUI.color=new Color(1,1,1,Mathf.Clamp01(opacity));
    GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.blackTexture);
   }
   GUI.color=Color.white;
+  if(loadingScene){GUI.matrix=CoopPromptUI.FitSafeArea();CoopPromptUI.Loading();GUI.matrix=Matrix4x4.identity;}
   if(canSkip&&!skipMovies){
    Rect safe=Screen.safeArea;
    if(safe.width<=0||safe.height<=0)safe=new Rect(0,0,Screen.width,Screen.height);

@@ -35,6 +35,18 @@ public static class CoopPromptUI {
   GUI.DrawTexture(new Rect(center.x-radius*.72f,center.y-radius*.72f,radius*1.44f,radius*1.44f),GameDuoMobileInput.PowerIcon());
   GUI.color=old;
  }
+ public static void Loading(){
+  var center=new Vector2(320,164);
+  Ring(center,16,1,new Color(.3f,.25f,.48f),2);
+  var previous=center;
+  for(int i=0;i<=16;i++){
+   float angle=Time.unscaledTime*5+i*.19f;
+   var next=center+new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*16;
+   if(i>0)Line(previous,next,2,Mint);
+   previous=next;
+  }
+  Text(new Rect(220,189,200,32),"Cargando…",15);
+ }
  public static void Stick(Vector2 center,float radius,int direction,Color color,bool active=true){
   Ring(center,radius,1,color,2);
   Color highlight=active?color:Color.Lerp(color,Color.gray,.7f);

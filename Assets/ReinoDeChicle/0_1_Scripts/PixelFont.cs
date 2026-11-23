@@ -17,6 +17,12 @@ public static class PixelFont {
  public static Color Ink=>new Color(.12f,.065f,.21f);public static Color Cream=>new Color(1,.94f,.79f);public static Color Mint=>new Color(.51f,1,.79f);public static Color Pink=>new Color(1,.5f,.7f);
  static string Clean(string s){var sb=new StringBuilder();foreach(char c in s.ToUpperInvariant().Normalize(NormalizationForm.FormD))if(CharUnicodeInfo.GetUnicodeCategory(c)!=UnicodeCategory.NonSpacingMark)sb.Append(c);return sb.ToString();}
  public static Rect Viewport {get{float scale=Mathf.Min(Screen.width/640f,Screen.height/360f);return new Rect((Screen.width-640*scale)*.5f,(Screen.height-360*scale)*.5f,640*scale,360*scale);}}
+ public static Vector3 WorldToHudViewport(Camera camera, Vector3 point){
+  if(!PixelViewport.WideCampaign)return camera.WorldToViewportPoint(point);
+  var pixel=camera.WorldToScreenPoint(point);
+  var hud=Viewport;
+  return new Vector3((pixel.x-hud.x)/hud.width,(pixel.y-(Screen.height-hud.yMax))/hud.height,pixel.z);
+ }
  public static void Begin(){var v=Viewport;GUI.matrix=Matrix4x4.TRS(new Vector3(v.x,v.y,0),Quaternion.identity,new Vector3(v.width/640,v.height/360,1));}
  public static void Fill(Rect r,Color c){GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=Color.white;}
  public static void Panel(Rect r,Color fill,Color edge){Fill(r,edge);Fill(new Rect(r.x+1,r.y+1,r.width-2,r.height-2),fill);Fill(new Rect(r.x+5,r.y+3,r.width-10,1),new Color(edge.r,edge.g,edge.b,.18f));}
