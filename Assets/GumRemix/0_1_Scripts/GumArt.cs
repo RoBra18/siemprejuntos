@@ -48,11 +48,22 @@ namespace GumRemix
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { defs = null; cache.Clear(); glyphs.Clear(); }
 
+        static T LoadPrototypeAsset<T>(string path) where T : UnityEngine.Object
+        {
+#if UNITY_EDITOR
+            string extension = typeof(T) == typeof(TextAsset) ? ".json" : ".png";
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(
+                "Assets/GumRemix/0_3_Art/PrototypeArt/" + path + extension);
+#else
+            return null;
+#endif
+        }
+
         public static void Init()
         {
             if (defs != null) return;
-            var ta = Resources.Load<TextAsset>("GumRemix/manifest");
-            if (ta == null) throw new Exception("GumRemix manifest not found in Resources/GumRemix");
+            var ta = LoadPrototypeAsset<TextAsset>("GumRemix/manifest");
+            if (ta == null) throw new Exception("Gum Remix art is available in the Unity Editor only");
             var m = JsonUtility.FromJson<Manifest>(ta.text);
             defs = new Dictionary<string, SheetDef>();
             foreach (var s in m.sheets) defs[s.name] = s;
@@ -68,7 +79,7 @@ namespace GumRemix
             SheetDef d;
             if (!defs.TryGetValue(name, out d)) throw new Exception("Unknown sheet " + name);
             sh = new Sheet { def = d };
-            sh.tex = Resources.Load<Texture2D>(d.file);
+            sh.tex = LoadPrototypeAsset<Texture2D>(d.file);
             if (sh.tex == null) throw new Exception("Texture missing: " + d.file);
             sh.tex.filterMode = FilterMode.Point; sh.tex.wrapMode = TextureWrapMode.Clamp;
             int rows = (d.count + d.cols - 1) / d.cols;

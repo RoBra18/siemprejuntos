@@ -26,7 +26,7 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
     float acceptModeInputAt;
     string joinIp = "";
     GUIStyle label;
-    Texture2D homeBackdrop, homeLogo;
+    Texture homeBackdrop, homeLogo;
     bool loading = true;
 
     bool IllustratedHome => page == Page.Home && homeBackdrop;
@@ -61,12 +61,45 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
         yield return backdrop;
         yield return logo;
         yield return theme;
-        homeBackdrop = backdrop.asset as Texture2D;
-        homeLogo = logo.asset as Texture2D;
+        homeBackdrop = PrepareMenuTexture(backdrop.asset as Texture2D);
+        homeLogo = PrepareMenuTexture(logo.asset as Texture2D);
         music.clip = theme.asset as AudioClip;
         if (music.clip) music.Play();
         loading = false;
         ResetModeInput();
+    }
+
+    static Texture PrepareMenuTexture(Texture2D source) {
+#if UNITY_IOS && !UNITY_EDITOR
+        if (source && QualitySettings.activeColorSpace == ColorSpace.Linear) {
+            // IMGUI on iOS presents these images with an extra display conversion.
+            var target = new RenderTexture(source.width, source.height, 0,
+                RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            target.name = source.name + " (iOS menu)";
+            target.wrapMode = TextureWrapMode.Clamp;
+            if (!target.Create()) {
+                Destroy(target);
+                return source;
+            }
+
+            var previous = RenderTexture.active;
+            bool writeSrgb = GL.sRGBWrite;
+            try {
+                GL.sRGBWrite = false;
+                Graphics.Blit(source, target);
+            } finally {
+                RenderTexture.active = previous;
+                GL.sRGBWrite = writeSrgb;
+            }
+            return target;
+        }
+#endif
+        return source;
+    }
+
+    void OnDestroy() {
+        if (homeBackdrop is RenderTexture backdrop) Destroy(backdrop);
+        if (homeLogo is RenderTexture logo) Destroy(logo);
     }
 
     void OnApplicationFocus(bool focused) { if (focused) ResetModeInput(); }

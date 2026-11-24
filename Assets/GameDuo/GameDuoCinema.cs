@@ -95,7 +95,12 @@ public sealed class GameDuoCinema : MonoBehaviour {
 #if !UNITY_ANDROID || UNITY_EDITOR
     if(!target||target.width!=clipW||target.height!=clipH){
      if(target){player.targetTexture=null;target.Release();Destroy(target);}
-     target=new RenderTexture(clipW,clipH,0);target.Create();
+#if UNITY_IOS && !UNITY_EDITOR
+     target=new RenderTexture(clipW,clipH,0,UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
+#else
+     target=new RenderTexture(clipW,clipH,0);
+#endif
+     target.Create();
      var prev=RenderTexture.active;RenderTexture.active=target;GL.Clear(true,true,Color.black);RenderTexture.active=prev;
     }
     player.targetTexture=target;

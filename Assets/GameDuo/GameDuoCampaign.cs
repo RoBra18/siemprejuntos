@@ -242,6 +242,7 @@ internal static class CampaignRewardedAd {
  static void Load(MonoBehaviour owner){
   GoogleMobileAds.Api.RewardedAd.Load(Unit,new GoogleMobileAds.Api.AdRequest(),(ad,error)=>{
    if(error!=null||ad==null||!ad.CanShowAd()){
+    Debug.LogWarning(error != null ? $"AdMob rewarded load failed: {error.GetDomain()} ({error.GetCode()}): {error.GetMessage()}" : "AdMob rewarded ad was not ready to show.");
     ad?.Destroy();Finish(true);return;
    }
    if(!owner||GameDuoCinema.Busy||CampaignEnergy.Current.Count>0){
@@ -249,7 +250,10 @@ internal static class CampaignRewardedAd {
    }
    bool rewarded=false;
    ad.OnAdFullScreenContentClosed+=()=>{ad.Destroy();Finish(false);};
-   ad.OnAdFullScreenContentFailed+=_=>{ad.Destroy();Finish(true);};
+   ad.OnAdFullScreenContentFailed+=error=>{
+    Debug.LogWarning($"AdMob rewarded show failed: {error}");
+    ad.Destroy();Finish(true);
+   };
    ad.Show(_=>{
     if(rewarded)return;
     rewarded=true;

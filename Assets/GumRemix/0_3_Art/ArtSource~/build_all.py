@@ -1,4 +1,4 @@
-"""Builds every PNG, its .meta (Point filter, uncompressed) and manifest.json into ../Resources/GumRemix/<category>/.
+"""Builds every PNG, its .meta (Point filter, uncompressed) and manifest.json into ../PrototypeArt/GumRemix/<category>/.
 Run:  python build_all.py"""
 import os, json, hashlib, sys, shutil
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -7,7 +7,7 @@ import heroes, enemies, fx, boss, env_bg, env_props
 import ice_enemies as ie, ice_fx, ice_boss, ice_env, ice_props
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.normpath(os.path.join(HERE, '..', 'Resources', 'GumRemix'))
+OUT = os.path.normpath(os.path.join(HERE, '..', 'PrototypeArt', 'GumRemix'))
 os.makedirs(OUT, exist_ok=True)
 
 META = open(os.path.join(HERE, 'texture_meta.template'), encoding='utf-8').read()
