@@ -29,10 +29,10 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
     Texture homeBackdrop, homeLogo;
     bool loading = true;
 #if UNITY_IOS && !UNITY_EDITOR
-    GameDuoIosColorComparison colorComparison;
+    GameDuoIosImageOverlay imageOverlay;
 
     void LateUpdate() {
-        colorComparison.Refresh(homeBackdrop, IllustratedHome && !loading && !GameDuoCinema.Busy);
+        imageOverlay.Refresh(homeBackdrop, IllustratedHome && !loading && !GameDuoCinema.Busy);
     }
 #endif
 
@@ -44,7 +44,7 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
         AudioListener.pause = false;
         controls = gameObject.AddComponent<GameDuoTutorial>();
 #if UNITY_IOS && !UNITY_EDITOR
-        colorComparison = new GameDuoIosColorComparison(transform, false);
+        imageOverlay = new GameDuoIosImageOverlay(transform, false);
 #endif
 
         GameDuoLan.Ensure();
@@ -151,7 +151,7 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
         if (IllustratedHome)
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            if (loading || !colorComparison.UseCanvas)
+            if (loading)
 #endif
                 GUI.DrawTexture(viewport, homeBackdrop, ScaleMode.ScaleAndCrop);
         }
@@ -170,10 +170,6 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
             }
         }
 
-#if UNITY_IOS && !UNITY_EDITOR
-        if (!loading && IllustratedHome && !controls.Reviewing)
-            colorComparison.Toggle(new Rect(350, 23, 112, 26));
-#endif
         GUI.matrix = oldMatrix;
         GUI.depth = oldDepth;
     }
