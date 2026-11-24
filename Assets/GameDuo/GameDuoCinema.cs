@@ -162,7 +162,18 @@ public sealed class GameDuoCinema : MonoBehaviour {
   busy=false;
  }
 
- void LateUpdate(){if(busy)Time.timeScale=0;}
+#if UNITY_IOS && !UNITY_EDITOR
+ GameDuoIosColorComparison colorComparison;
+ bool CanCompareColors => showingMovie && !skipMovies && !failed && opacity <= .002f;
+ void Awake(){colorComparison=new GameDuoIosColorComparison(transform,true);}
+#endif
+
+ void LateUpdate(){
+  if(busy)Time.timeScale=0;
+#if UNITY_IOS && !UNITY_EDITOR
+  colorComparison.Refresh(target,CanCompareColors);
+#endif
+ }
 
  void OnGUI(){
   if(!busy&&!holdBlackBackground)return;
@@ -170,14 +181,18 @@ public sealed class GameDuoCinema : MonoBehaviour {
   var oldMatrix=GUI.matrix;var oldColor=GUI.color;int oldDepth=GUI.depth;
   GUI.depth=busy?-10000:-99;GUI.matrix=Matrix4x4.identity;GUI.color=Color.white;
   var screen=new Rect(0,0,Screen.width,Screen.height);
-  if(holdBlackBackground||showingMovie)GUI.DrawTexture(screen,Texture2D.blackTexture,ScaleMode.StretchToFill,false);
+  bool canvasShowing=false;
+#if UNITY_IOS && !UNITY_EDITOR
+  canvasShowing=CanCompareColors && colorComparison.UseCanvas && target;
+#endif
+  if(!canvasShowing&&(holdBlackBackground||showingMovie))GUI.DrawTexture(screen,Texture2D.blackTexture,ScaleMode.StretchToFill,false);
   if(!busy){GUI.matrix=oldMatrix;GUI.color=oldColor;GUI.depth=oldDepth;return;}
 #if UNITY_ANDROID && !UNITY_EDITOR
   Texture movie=player?player.texture:null;
 #else
   Texture movie=target;
 #endif
-  if(showingMovie&&movie)GUI.DrawTexture(screen,movie,ScaleMode.ScaleToFit,false);
+  if(!canvasShowing&&showingMovie&&movie)GUI.DrawTexture(screen,movie,ScaleMode.ScaleToFit,false);
   if(opacity>0.002f){
    GUI.color=new Color(1,1,1,Mathf.Clamp01(opacity));
    GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.blackTexture);
@@ -190,6 +205,9 @@ public sealed class GameDuoCinema : MonoBehaviour {
    float scale=GameDuoMobileInput.Scale;
    GUI.matrix=Matrix4x4.TRS(new Vector3(safe.xMax,Screen.height-safe.yMax),Quaternion.identity,new Vector3(scale,scale,1));
    if(CoopPromptUI.Button(new Rect(-158,16,142,56),"Omitir",CoopPromptUI.Mint))skipMovies=true;
+#if UNITY_IOS && !UNITY_EDITOR
+   if(CanCompareColors)colorComparison.Toggle(new Rect(-310,16,142,56));
+#endif
    GUI.matrix=Matrix4x4.identity;
   }
   if(failed&&!skipMovies){CoopPromptUI.Text(new Rect(30,Screen.height/2-40,Screen.width-60,50),"No se pudo reproducir la cinemática.",16);if(GUI.Button(new Rect(Screen.width/2-100,Screen.height/2+20,200,40),"Continuar"))failed=false;}

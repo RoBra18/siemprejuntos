@@ -28,6 +28,13 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
     GUIStyle label;
     Texture homeBackdrop, homeLogo;
     bool loading = true;
+#if UNITY_IOS && !UNITY_EDITOR
+    GameDuoIosColorComparison colorComparison;
+
+    void LateUpdate() {
+        colorComparison.Refresh(homeBackdrop, IllustratedHome && !loading && !GameDuoCinema.Busy);
+    }
+#endif
 
     bool IllustratedHome => page == Page.Home && homeBackdrop;
 
@@ -36,6 +43,9 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
         Time.timeScale = 1;
         AudioListener.pause = false;
         controls = gameObject.AddComponent<GameDuoTutorial>();
+#if UNITY_IOS && !UNITY_EDITOR
+        colorComparison = new GameDuoIosColorComparison(transform, false);
+#endif
 
         GameDuoLan.Ensure();
 
@@ -139,7 +149,12 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
         GUI.matrix = Matrix4x4.identity;
         var viewport = new Rect(0, 0, Screen.width, Screen.height);
         if (IllustratedHome)
-            GUI.DrawTexture(viewport, homeBackdrop, ScaleMode.ScaleAndCrop);
+        {
+#if UNITY_IOS && !UNITY_EDITOR
+            if (loading || !colorComparison.UseCanvas)
+#endif
+                GUI.DrawTexture(viewport, homeBackdrop, ScaleMode.ScaleAndCrop);
+        }
         else
             CoopPromptUI.Fill(viewport, Background);
         GUI.matrix = CoopPromptUI.FitSafeArea();
@@ -155,6 +170,10 @@ public sealed class GameDuoMainMenu : MonoBehaviour {
             }
         }
 
+#if UNITY_IOS && !UNITY_EDITOR
+        if (!loading && IllustratedHome && !controls.Reviewing)
+            colorComparison.Toggle(new Rect(350, 23, 112, 26));
+#endif
         GUI.matrix = oldMatrix;
         GUI.depth = oldDepth;
     }
